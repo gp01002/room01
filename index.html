@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自我觀測儀 - 能量流動系統</title>
+    <title>自我觀測儀 - 垂直能量流動系統</title>
     <!-- 使用整合型的 Holistic 模型以避免資源衝突 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -86,47 +86,54 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 核心能量粒子 (精緻小巧、擴散快速版本) ---
+        // --- 垂直能量粒子 (長光柱版) ---
         class EnergyParticle {
             constructor(x, y, hue = 45) {
                 this.originX = x;
-                this.x = x + (Math.random() - 0.5) * 40; // 初始隨機位置
+                this.x = x + (Math.random() - 0.5) * 5; // 極小的水平初始偏差
                 this.y = y;
-                // 加強水平擴散速度
-                this.vx = (Math.random() - 0.5) * 5; 
-                this.vy = 1 + Math.random() * 7;
+                // 限制水平速度，加強垂直速度
+                this.vx = (Math.random() - 0.5) * 0.5; 
+                this.vy = 5 + Math.random() * 10;
                 this.history = [];
-                this.maxHistory = 35 + Math.random() * 45; 
+                // 大幅增加歷史長度，實現無限延伸感
+                this.maxHistory = 150 + Math.random() * 100; 
                 this.hue = hue;
                 this.alpha = 1.0;
-                // 加快透明度衰減
-                this.decay = 0.012 + Math.random() * 0.018; 
-                this.gravity = 0.25;
-                // 極細粒子
-                this.width = 0.6 + Math.random() * 1.2; 
+                // 降低衰減速度，讓光柱留存更久
+                this.decay = 0.005 + Math.random() * 0.008; 
+                this.gravity = 0.4;
+                // 增加光影痕跡的寬度
+                this.width = 1.5 + Math.random() * 3.5; 
             }
 
             update() {
                 this.vy += this.gravity;
-                // 輕微的中心向性，但保持擴散
-                this.x += (this.originX - this.x) * 0.01; 
+                // 強力的中心收攏，維持一直線
+                this.x += (this.originX - this.x) * 0.1; 
                 this.x += this.vx;
                 this.y += this.vy;
                 this.alpha -= this.decay;
+                
                 this.history.push({ x: this.x, y: this.y });
                 if (this.history.length > this.maxHistory) this.history.shift();
             }
 
             draw() {
                 if (this.history.length < 2 || this.alpha <= 0) return;
+                
                 canvasCtx.beginPath();
                 canvasCtx.moveTo(this.history[0].x, this.history[0].y);
                 for (let i = 1; i < this.history.length; i++) {
                     canvasCtx.lineTo(this.history[i].x, this.history[i].y);
                 }
-                const g = canvasCtx.createLinearGradient(this.x, this.y - 40, this.x, this.y);
+                
+                // 垂直長線的發光漸層
+                const g = canvasCtx.createLinearGradient(this.x, this.y - 200, this.x, this.y);
                 g.addColorStop(0, `hsla(${this.hue}, 100%, 90%, 0)`);
-                g.addColorStop(1, `hsla(${this.hue}, 100%, 75%, ${this.alpha})`);
+                g.addColorStop(0.5, `hsla(${this.hue}, 100%, 75%, ${this.alpha * 0.8})`);
+                g.addColorStop(1, `hsla(${this.hue}, 100%, 60%, ${this.alpha})`);
+
                 canvasCtx.strokeStyle = g;
                 canvasCtx.lineWidth = this.width;
                 canvasCtx.lineCap = 'round';
@@ -144,23 +151,23 @@
             const hands = [currentResults.leftHandLandmarks, currentResults.rightHandLandmarks];
             hands.forEach(hand => {
                 if (hand) {
-                    // 指尖關鍵點
                     [0, 4, 8, 12, 16, 20].forEach(idx => {
                         const x = (1 - hand[idx].x) * width;
                         const y = hand[idx].y * height;
                         
-                        // 高頻率產生精細粒子
-                        if (Math.random() > 0.3) {
+                        // 持續產生光柱粒子
+                        if (Math.random() > 0.2) {
                             particles.push(new EnergyParticle(x, y, 45 + Math.random() * 10));
                         }
                         
-                        // 點綴微光
-                        const radial = canvasCtx.createRadialGradient(x, y, 0, x, y, 6);
-                        radial.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+                        // 擴大源頭的光影痕跡 (放射狀光暈)
+                        const radialSize = 15 + Math.random() * 20;
+                        const radial = canvasCtx.createRadialGradient(x, y, 0, x, y, radialSize);
+                        radial.addColorStop(0, 'rgba(255, 215, 0, 0.6)');
                         radial.addColorStop(1, 'rgba(255, 215, 0, 0)');
                         canvasCtx.fillStyle = radial;
                         canvasCtx.beginPath();
-                        canvasCtx.arc(x, y, 6, 0, Math.PI*2);
+                        canvasCtx.arc(x, y, radialSize, 0, Math.PI*2);
                         canvasCtx.fill();
                     });
                 }
@@ -168,17 +175,26 @@
 
             // 2. 處理臉部
             if (currentResults.faceLandmarks) {
-                // 鼻尖座標 (Landmark 1)
                 const nose = currentResults.faceLandmarks[1];
                 const x = (1 - nose.x) * width;
                 const y = nose.y * height;
-                for(let i=0; i<3; i++) {
+                
+                // 臉部光柱產生率
+                for(let i=0; i<4; i++) {
                     particles.push(new EnergyParticle(x, y, 50 + Math.random() * 10));
                 }
+
+                // 臉部中心大光暈
+                const faceGlow = canvasCtx.createRadialGradient(x, y, 0, x, y, 40);
+                faceGlow.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                faceGlow.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                canvasCtx.fillStyle = faceGlow;
+                canvasCtx.beginPath();
+                canvasCtx.arc(x, y, 40, 0, Math.PI*2);
+                canvasCtx.fill();
             }
         }
 
-        // --- 初始化 Holistic 模型 ---
         const holistic = new Holistic({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
         });
@@ -210,13 +226,12 @@
             statusText.innerText = "CONNECTING CAMERA...";
             camera.start().catch(err => {
                 statusText.innerText = "SYSTEM ERROR: " + err;
-                console.error(err);
             });
         });
 
         function animate() {
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.35)'; // 維持清爽的殘影
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.25)'; // 調整背景殘影，讓光柱連貫
             canvasCtx.fillRect(0, 0, width, height);
 
             if (isSystemRunning) {
@@ -226,7 +241,7 @@
                     const p = particles[i];
                     p.update();
                     p.draw();
-                    if (p.alpha <= 0 || p.y > height + 100) particles.splice(i, 1);
+                    if (p.alpha <= 0 || p.y > height + 200) particles.splice(i, 1);
                 }
             }
             requestAnimationFrame(animate);
