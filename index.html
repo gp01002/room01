@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自我觀測儀 - 精緻能量流動系統</title>
-    <!-- 引入 MediaPipe 必要庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <title>自我觀測儀 - 能量流動系統</title>
+    <!-- 使用整合型的 Holistic 模型以避免資源衝突 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic/holistic.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <style>
         body, html {
@@ -49,7 +48,6 @@
             color: #FFD700;
             cursor: pointer;
             letter-spacing: 2px;
-            display: none; /* 初始隱藏，模型載入後顯示 */
             transition: all 0.3s;
         }
         #start-btn:hover {
@@ -61,11 +59,10 @@
 <body>
 
     <div id="loading-screen">
-        <div id="status-text">MODELS LOADING...</div>
+        <div id="status-text">INITIALIZING AI SYSTEM...</div>
         <button id="start-btn">START SYSTEM</button>
     </div>
 
-    <!-- 增加相容性屬性 -->
     <video id="input_video" playsinline muted autoplay></video>
     <canvas id="output_canvas"></canvas>
 
@@ -79,9 +76,8 @@
 
         let width, height;
         let particles = [];
-        let currentHandData = [];
-        let currentFaceData = null;
         let isSystemRunning = false;
+        let currentResults = null;
 
         function resize() {
             width = canvasElement.width = window.innerWidth;
@@ -90,24 +86,29 @@
         window.addEventListener('resize', resize);
         resize();
 
+        // --- 核心能量粒子 (精緻小巧、擴散快速版本) ---
         class EnergyParticle {
             constructor(x, y, hue = 45) {
                 this.originX = x;
-                this.x = x + (Math.random() - 0.5) * 30;
+                this.x = x + (Math.random() - 0.5) * 40; // 初始隨機位置
                 this.y = y;
-                this.vx = (Math.random() - 0.5) * 4; 
-                this.vy = 1 + Math.random() * 6;
+                // 加強水平擴散速度
+                this.vx = (Math.random() - 0.5) * 5; 
+                this.vy = 1 + Math.random() * 7;
                 this.history = [];
-                this.maxHistory = 40 + Math.random() * 40; 
+                this.maxHistory = 35 + Math.random() * 45; 
                 this.hue = hue;
                 this.alpha = 1.0;
-                this.decay = 0.01 + Math.random() * 0.015; 
-                this.gravity = 0.2;
-                this.width = 0.5 + Math.random() * 1.5; 
+                // 加快透明度衰減
+                this.decay = 0.012 + Math.random() * 0.018; 
+                this.gravity = 0.25;
+                // 極細粒子
+                this.width = 0.6 + Math.random() * 1.2; 
             }
 
             update() {
                 this.vy += this.gravity;
+                // 輕微的中心向性，但保持擴散
                 this.x += (this.originX - this.x) * 0.01; 
                 this.x += this.vx;
                 this.y += this.vy;
@@ -123,7 +124,7 @@
                 for (let i = 1; i < this.history.length; i++) {
                     canvasCtx.lineTo(this.history[i].x, this.history[i].y);
                 }
-                const g = canvasCtx.createLinearGradient(this.x, this.y - 50, this.x, this.y);
+                const g = canvasCtx.createLinearGradient(this.x, this.y - 40, this.x, this.y);
                 g.addColorStop(0, `hsla(${this.hue}, 100%, 90%, 0)`);
                 g.addColorStop(1, `hsla(${this.hue}, 100%, 75%, ${this.alpha})`);
                 canvasCtx.strokeStyle = g;
@@ -133,75 +134,93 @@
             }
         }
 
-        function drawAura() {
-            if (!isSystemRunning) return;
+        // --- 處理偵測結果與繪圖 ---
+        function processAndDraw() {
+            if (!isSystemRunning || !currentResults) return;
+            
             canvasCtx.globalCompositeOperation = 'lighter';
-            currentHandData.forEach(hand => {
-                [0, 4, 8, 12, 16, 20].forEach(idx => {
-                    const x = (1 - hand[idx].x) * width;
-                    const y = hand[idx].y * height;
-                    if (Math.random() > 0.4) particles.push(new EnergyParticle(x, y, 45 + Math.random() * 10));
-                    const radial = canvasCtx.createRadialGradient(x, y, 0, x, y, 8);
-                    radial.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
-                    radial.addColorStop(1, 'rgba(255, 215, 0, 0)');
-                    canvasCtx.fillStyle = radial;
-                    canvasCtx.beginPath();
-                    canvasCtx.arc(x, y, 8, 0, Math.PI*2);
-                    canvasCtx.fill();
-                });
+
+            // 1. 處理手部 (左右手)
+            const hands = [currentResults.leftHandLandmarks, currentResults.rightHandLandmarks];
+            hands.forEach(hand => {
+                if (hand) {
+                    // 指尖關鍵點
+                    [0, 4, 8, 12, 16, 20].forEach(idx => {
+                        const x = (1 - hand[idx].x) * width;
+                        const y = hand[idx].y * height;
+                        
+                        // 高頻率產生精細粒子
+                        if (Math.random() > 0.3) {
+                            particles.push(new EnergyParticle(x, y, 45 + Math.random() * 10));
+                        }
+                        
+                        // 點綴微光
+                        const radial = canvasCtx.createRadialGradient(x, y, 0, x, y, 6);
+                        radial.addColorStop(0, 'rgba(255, 215, 0, 0.4)');
+                        radial.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                        canvasCtx.fillStyle = radial;
+                        canvasCtx.beginPath();
+                        canvasCtx.arc(x, y, 6, 0, Math.PI*2);
+                        canvasCtx.fill();
+                    });
+                }
             });
 
-            if (currentFaceData) {
-                const noseTip = currentFaceData[1];
-                const x = (1 - noseTip.x) * width;
-                const y = noseTip.y * height;
-                for(let i=0; i<2; i++) particles.push(new EnergyParticle(x, y, 50 + Math.random() * 10));
+            // 2. 處理臉部
+            if (currentResults.faceLandmarks) {
+                // 鼻尖座標 (Landmark 1)
+                const nose = currentResults.faceLandmarks[1];
+                const x = (1 - nose.x) * width;
+                const y = nose.y * height;
+                for(let i=0; i<3; i++) {
+                    particles.push(new EnergyParticle(x, y, 50 + Math.random() * 10));
+                }
             }
         }
 
-        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+        // --- 初始化 Holistic 模型 ---
+        const holistic = new Holistic({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
+        });
 
-        const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
-        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+        holistic.setOptions({
+            modelComplexity: 1,
+            smoothLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
 
-        hands.onResults(r => currentHandData = r.multiHandLandmarks || []);
-        faceMesh.onResults(r => currentFaceData = r.multiFaceLandmarks ? r.multiFaceLandmarks[0] : null);
+        holistic.onResults(results => {
+            currentResults = results;
+            if (loadingScreen.style.opacity !== '0') {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 1000);
+            }
+        });
 
-        // 初始化相機但不自動開始，等待用戶點擊
         const camera = new Camera(videoElement, {
             onFrame: async () => {
-                await hands.send({image: videoElement});
-                await faceMesh.send({image: videoElement});
-                if (loadingScreen.style.opacity !== '0') {
-                    loadingScreen.style.opacity = '0';
-                    setTimeout(() => loadingScreen.style.display = 'none', 1000);
-                }
+                await holistic.send({image: videoElement});
             },
             width: 1280, height: 720
         });
 
-        // 模擬模型載入完成
-        Promise.all([hands.initialize(), faceMesh.initialize()]).then(() => {
-            statusText.innerText = "SYSTEM READY";
-            startBtn.style.display = "block";
-        });
-
         startBtn.addEventListener('click', () => {
             isSystemRunning = true;
+            statusText.innerText = "CONNECTING CAMERA...";
             camera.start().catch(err => {
-                statusText.innerText = "CAMERA ERROR: " + err;
-                startBtn.style.display = "none";
+                statusText.innerText = "SYSTEM ERROR: " + err;
+                console.error(err);
             });
         });
 
         function animate() {
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.35)'; // 維持清爽的殘影
             canvasCtx.fillRect(0, 0, width, height);
 
             if (isSystemRunning) {
-                drawAura();
+                processAndDraw();
                 canvasCtx.globalCompositeOperation = 'lighter';
                 for (let i = particles.length - 1; i >= 0; i--) {
                     const p = particles[i];
