@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自我觀測儀 - 藝術光影系統</title>
+    <title>自我觀測儀 - 精緻能量流動系統</title>
     <!-- 引入 MediaPipe 必要庫 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -16,37 +16,16 @@
             height: 100%;
             overflow: hidden;
             background-color: #000;
-            color: white;
-            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
         }
-
         canvas {
             position: absolute;
             top: 0;
             left: 0;
             z-index: 10;
         }
-
         #input_video {
             display: none;
         }
-
-        #ui-overlay {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        .status {
-            background: rgba(0, 0, 0, 0.6);
-            padding: 12px 18px;
-            border-radius: 12px;
-            border-left: 4px solid #FFD700;
-            backdrop-filter: blur(5px);
-        }
-
         #loading-screen {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -56,36 +35,38 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.8s;
+            transition: opacity 1s;
+            color: #FFD700;
+            font-family: sans-serif;
+            letter-spacing: 4px;
+            font-size: 14px;
         }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(255, 215, 0, 0.1);
-            border-top: 3px solid #FFD700;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        #start-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid #FFD700;
+            color: #FFD700;
+            cursor: pointer;
+            letter-spacing: 2px;
+            display: none; /* 初始隱藏，模型載入後顯示 */
+            transition: all 0.3s;
         }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #start-btn:hover {
+            background: #FFD700;
+            color: #000;
+        }
     </style>
 </head>
 <body>
 
     <div id="loading-screen">
-        <div class="spinner"></div>
-        <p style="margin-top: 20px; letter-spacing: 2px;">初始化數位感知系統...</p>
+        <div id="status-text">MODELS LOADING...</div>
+        <button id="start-btn">START SYSTEM</button>
     </div>
 
-    <div id="ui-overlay">
-        <div class="status">
-            <strong style="color: #FFD700;">自我觀測儀</strong><br>
-            <span id="tracker-info" style="font-size: 13px; opacity: 0.8;">請進入攝影機偵測範圍</span>
-        </div>
-    </div>
-
-    <video id="input_video"></video>
+    <!-- 增加相容性屬性 -->
+    <video id="input_video" playsinline muted autoplay></video>
     <canvas id="output_canvas"></canvas>
 
     <script>
@@ -93,14 +74,14 @@
         const canvasElement = document.getElementById('output_canvas');
         const canvasCtx = canvasElement.getContext('2d');
         const loadingScreen = document.getElementById('loading-screen');
-        const trackerInfo = document.getElementById('tracker-info');
+        const statusText = document.getElementById('status-text');
+        const startBtn = document.getElementById('start-btn');
 
         let width, height;
-        let lightBeams = [];
-        let glowingTraces = [];
+        let particles = [];
         let currentHandData = [];
         let currentFaceData = null;
-        let beamTriggerCooldown = 0;
+        let isSystemRunning = false;
 
         function resize() {
             width = canvasElement.width = window.innerWidth;
@@ -109,185 +90,63 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 金色光暈類別 ---
-        class GlowingTrace {
-            constructor(x, y) {
-                this.x = x;
+        class EnergyParticle {
+            constructor(x, y, hue = 45) {
+                this.originX = x;
+                this.x = x + (Math.random() - 0.5) * 30;
                 this.y = y;
-                this.r = 30 + Math.random() * 100;
-                this.a = 0.15 + Math.random() * 0.3;
-                this.color = randomColor();
-                this.vx = (Math.random() - 0.5) * 1;
-                this.vy = (Math.random() - 0.5) * 1;
+                this.vx = (Math.random() - 0.5) * 4; 
+                this.vy = 1 + Math.random() * 6;
+                this.history = [];
+                this.maxHistory = 40 + Math.random() * 40; 
+                this.hue = hue;
+                this.alpha = 1.0;
+                this.decay = 0.01 + Math.random() * 0.015; 
+                this.gravity = 0.2;
+                this.width = 0.5 + Math.random() * 1.5; 
             }
 
             update() {
+                this.vy += this.gravity;
+                this.x += (this.originX - this.x) * 0.01; 
                 this.x += this.vx;
                 this.y += this.vy;
-                this.a *= 0.985;
+                this.alpha -= this.decay;
+                this.history.push({ x: this.x, y: this.y });
+                if (this.history.length > this.maxHistory) this.history.shift();
             }
 
             draw() {
-                const outerGlow = canvasCtx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 1.5);
-                outerGlow.addColorStop(0, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.a * 0.8})`);
-                outerGlow.addColorStop(0.4, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.a * 0.4})`);
-                outerGlow.addColorStop(1, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},0)`);
-                
+                if (this.history.length < 2 || this.alpha <= 0) return;
                 canvasCtx.beginPath();
-                canvasCtx.arc(this.x, this.y, this.r * 1.5, 0, Math.PI * 2);
-                canvasCtx.fillStyle = outerGlow;
-                canvasCtx.fill();
-                
-                const core = canvasCtx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 0.5);
-                core.addColorStop(0, `rgba(255,255,255,${this.a})`);
-                core.addColorStop(0.5, `rgba(255,240,200,${this.a * 0.6})`);
-                core.addColorStop(1, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},0)`);
-                
-                canvasCtx.beginPath();
-                canvasCtx.arc(this.x, this.y, this.r * 0.5, 0, Math.PI * 2);
-                canvasCtx.fillStyle = core;
-                canvasCtx.fill();
-            }
-        }
-
-        function randomColor() {
-            const colors = [
-                [220, 220, 255],
-                [255, 220, 220],
-                [220, 255, 220],
-                [230, 220, 255],
-                [255, 240, 220]
-            ];
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-
-        // --- 流動光柱類別（新版：會往下流動）---
-        class FlowingLightBeam {
-            constructor(x) {
-                this.x = x;
-                this.width = 40 + Math.random() * 100;
-                this.opacity = 0.8 + Math.random() * 0.2;
-                this.life = 1.0;
-                this.decay = 0.003 + Math.random() * 0.005;
-                this.flicker = Math.random() * Math.PI * 2;
-                this.pulseSpeed = 0.05 + Math.random() * 0.1;
-                
-                // 流動效果參數
-                this.flowOffset = 0; // 流動位移
-                this.flowSpeed = 3 + Math.random() * 4; // 流動速度
-                this.segmentHeight = 150 + Math.random() * 100; // 光段高度
-                
-                this.rays = [];
-                for (let i = 0; i < 5; i++) {
-                    this.rays.push({
-                        offset: (Math.random() - 0.5) * 100,
-                        width: 5 + Math.random() * 15,
-                        opacity: 0.3 + Math.random() * 0.4
-                    });
+                canvasCtx.moveTo(this.history[0].x, this.history[0].y);
+                for (let i = 1; i < this.history.length; i++) {
+                    canvasCtx.lineTo(this.history[i].x, this.history[i].y);
                 }
-            }
-            
-            update() {
-                this.life -= this.decay;
-                this.flicker += this.pulseSpeed;
-                this.flowOffset += this.flowSpeed; // 持續往下流動
-                return this.life > 0;
-            }
-            
-            draw() {
-                const pulse = Math.sin(this.flicker) * 0.4 + 0.6;
-                const currentOpacity = this.opacity * this.life * pulse;
-                
-                // 繪製多個流動光段
-                const numSegments = Math.ceil(height / this.segmentHeight) + 2;
-                
-                for (let i = 0; i < numSegments; i++) {
-                    const segmentY = (i * this.segmentHeight - this.flowOffset) % (height + this.segmentHeight);
-                    
-                    // 主光柱段
-                    const mainGradient = canvasCtx.createLinearGradient(
-                        this.x, segmentY,
-                        this.x, segmentY + this.segmentHeight
-                    );
-                    
-                    mainGradient.addColorStop(0, `rgba(255,255,255,0)`);
-                    mainGradient.addColorStop(0.2, `rgba(255,255,255,${currentOpacity * 0.9})`);
-                    mainGradient.addColorStop(0.5, `rgba(255,255,240,${currentOpacity * 0.8})`);
-                    mainGradient.addColorStop(0.8, `rgba(255,240,200,${currentOpacity * 0.5})`);
-                    mainGradient.addColorStop(1, `rgba(255,220,150,0)`);
-                    
-                    const xGradient = canvasCtx.createRadialGradient(
-                        this.x, segmentY + this.segmentHeight / 2, 0,
-                        this.x, segmentY + this.segmentHeight / 2, this.width * 1.5
-                    );
-                    xGradient.addColorStop(0, `rgba(255,255,255,${currentOpacity})`);
-                    xGradient.addColorStop(0.5, `rgba(255,255,240,${currentOpacity * 0.6})`);
-                    xGradient.addColorStop(1, `rgba(255,240,200,0)`);
-                    
-                    canvasCtx.globalCompositeOperation = 'lighter';
-                    
-                    // 使用徑向漸層繪製
-                    canvasCtx.fillStyle = xGradient;
-                    canvasCtx.fillRect(
-                        this.x - this.width * 1.5,
-                        segmentY,
-                        this.width * 3,
-                        this.segmentHeight
-                    );
-                    
-                    // 核心光柱
-                    const coreGradient = canvasCtx.createRadialGradient(
-                        this.x, segmentY + this.segmentHeight / 2, 0,
-                        this.x, segmentY + this.segmentHeight / 2, this.width * 0.3
-                    );
-                    coreGradient.addColorStop(0, `rgba(255,255,255,${Math.min(1, currentOpacity * 1.5)})`);
-                    coreGradient.addColorStop(1, `rgba(255,255,240,0)`);
-                    
-                    canvasCtx.fillStyle = coreGradient;
-                    canvasCtx.fillRect(
-                        this.x - this.width * 0.3,
-                        segmentY,
-                        this.width * 0.6,
-                        this.segmentHeight
-                    );
-                }
-                
-                // 頂部光源
-                const topGlow = canvasCtx.createRadialGradient(this.x, 0, 0, this.x, 0, this.width * 2);
-                topGlow.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.7})`);
-                topGlow.addColorStop(0.5, `rgba(255,255,200,${currentOpacity * 0.4})`);
-                topGlow.addColorStop(1, `rgba(255,200,100,0)`);
-                
-                canvasCtx.beginPath();
-                canvasCtx.arc(this.x, 0, this.width * 2, 0, Math.PI * 2);
-                canvasCtx.fillStyle = topGlow;
-                canvasCtx.fill();
+                const g = canvasCtx.createLinearGradient(this.x, this.y - 50, this.x, this.y);
+                g.addColorStop(0, `hsla(${this.hue}, 100%, 90%, 0)`);
+                g.addColorStop(1, `hsla(${this.hue}, 100%, 75%, ${this.alpha})`);
+                canvasCtx.strokeStyle = g;
+                canvasCtx.lineWidth = this.width;
+                canvasCtx.lineCap = 'round';
+                canvasCtx.stroke();
             }
         }
 
-        // --- 抽象化的數位痕跡 ---
-        function drawAbstractPresence() {
-            canvasCtx.shadowBlur = 15;
-            
+        function drawAura() {
+            if (!isSystemRunning) return;
+            canvasCtx.globalCompositeOperation = 'lighter';
             currentHandData.forEach(hand => {
                 [0, 4, 8, 12, 16, 20].forEach(idx => {
-                    const pt = hand[idx];
-                    const x = (1 - pt.x) * width;
-                    const y = pt.y * height;
-                    
-                    const glow = canvasCtx.createRadialGradient(x, y, 0, x, y, 20);
-                    glow.addColorStop(0, 'rgba(0, 242, 255, 0.4)');
-                    glow.addColorStop(0.5, 'rgba(0, 212, 255, 0.2)');
-                    glow.addColorStop(1, 'rgba(0, 180, 255, 0)');
-                    
-                    canvasCtx.fillStyle = glow;
+                    const x = (1 - hand[idx].x) * width;
+                    const y = hand[idx].y * height;
+                    if (Math.random() > 0.4) particles.push(new EnergyParticle(x, y, 45 + Math.random() * 10));
+                    const radial = canvasCtx.createRadialGradient(x, y, 0, x, y, 8);
+                    radial.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+                    radial.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                    canvasCtx.fillStyle = radial;
                     canvasCtx.beginPath();
-                    canvasCtx.arc(x, y, 20, 0, Math.PI * 2);
-                    canvasCtx.fill();
-                    
-                    canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                    canvasCtx.beginPath();
-                    canvasCtx.arc(x, y, 2, 0, Math.PI * 2);
+                    canvasCtx.arc(x, y, 8, 0, Math.PI*2);
                     canvasCtx.fill();
                 });
             });
@@ -296,123 +155,63 @@
                 const noseTip = currentFaceData[1];
                 const x = (1 - noseTip.x) * width;
                 const y = noseTip.y * height;
-                
-                const faceGlow = canvasCtx.createRadialGradient(x, y, 0, x, y, 40);
-                faceGlow.addColorStop(0, 'rgba(188, 0, 255, 0.4)');
-                faceGlow.addColorStop(0.5, 'rgba(160, 0, 220, 0.2)');
-                faceGlow.addColorStop(1, 'rgba(130, 0, 180, 0)');
-                
-                canvasCtx.fillStyle = faceGlow;
-                canvasCtx.beginPath();
-                canvasCtx.arc(x, y, 40, 0, Math.PI * 2);
-                canvasCtx.fill();
-                
-                canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                canvasCtx.beginPath();
-                canvasCtx.arc(x, y, 3, 0, Math.PI * 2);
-                canvasCtx.fill();
+                for(let i=0; i<2; i++) particles.push(new EnergyParticle(x, y, 50 + Math.random() * 10));
             }
-            
-            canvasCtx.shadowBlur = 0;
         }
 
-        // --- MediaPipe 邏輯 ---
         const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
 
         const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
         faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
 
-        hands.onResults((results) => {
-            currentHandData = results.multiHandLandmarks || [];
-            
-            // 產生金色光暈痕跡（減少50%：0.7 → 0.85）
-            currentHandData.forEach(hand => {
-                [4, 8, 12, 16, 20].forEach(idx => {
-                    if (Math.random() > 0.85) { // 原本 0.7，現在 0.85
-                        const pt = hand[idx];
-                        const x = (1 - pt.x) * width;
-                        const y = pt.y * height;
-                        glowingTraces.push(new GlowingTrace(x, y));
-                    }
-                });
-                
-                // 手勢觸發光柱
-                if (beamTriggerCooldown <= 0 && Math.random() > 0.9) {
-                    const fingerTip = hand[8];
-                    const x = (1 - fingerTip.x) * width;
-                    lightBeams.push(new FlowingLightBeam(x));
-                    beamTriggerCooldown = 80;
-                }
-            });
-        });
+        hands.onResults(r => currentHandData = r.multiHandLandmarks || []);
+        faceMesh.onResults(r => currentFaceData = r.multiFaceLandmarks ? r.multiFaceLandmarks[0] : null);
 
-        faceMesh.onResults((results) => {
-            currentFaceData = results.multiFaceLandmarks ? results.multiFaceLandmarks[0] : null;
-            if (currentFaceData) {
-                // 臉部產生金色光暈（減少50%：0.8 → 0.9）
-                if (Math.random() > 0.9) { // 原本 0.8，現在 0.9
-                    const x = (1 - currentFaceData[1].x) * width;
-                    const y = currentFaceData[1].y * height;
-                    glowingTraces.push(new GlowingTrace(x, y));
-                }
-                
-                // 臉部觸發光柱
-                if (beamTriggerCooldown <= 0 && Math.random() > 0.96) {
-                    const x = (1 - currentFaceData[1].x) * width;
-                    lightBeams.push(new FlowingLightBeam(x));
-                    beamTriggerCooldown = 100;
-                }
-            }
-        });
-
+        // 初始化相機但不自動開始，等待用戶點擊
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
                 await faceMesh.send({image: videoElement});
                 if (loadingScreen.style.opacity !== '0') {
                     loadingScreen.style.opacity = '0';
-                    setTimeout(() => loadingScreen.style.display = 'none', 800);
+                    setTimeout(() => loadingScreen.style.display = 'none', 1000);
                 }
             },
             width: 1280, height: 720
         });
-        camera.start();
+
+        // 模擬模型載入完成
+        Promise.all([hands.initialize(), faceMesh.initialize()]).then(() => {
+            statusText.innerText = "SYSTEM READY";
+            startBtn.style.display = "block";
+        });
+
+        startBtn.addEventListener('click', () => {
+            isSystemRunning = true;
+            camera.start().catch(err => {
+                statusText.innerText = "CAMERA ERROR: " + err;
+                startBtn.style.display = "none";
+            });
+        });
 
         function animate() {
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.35)';
             canvasCtx.fillRect(0, 0, width, height);
 
-            // 1. 繪製流動光柱
-            canvasCtx.globalCompositeOperation = 'lighter';
-            lightBeams = lightBeams.filter(beam => {
-                const alive = beam.update();
-                if (alive) beam.draw();
-                return alive;
-            });
-
-            // 2. 繪製抽象存在感
-            canvasCtx.globalCompositeOperation = 'lighter';
-            drawAbstractPresence();
-
-            // 3. 繪製金色光暈痕跡
-            canvasCtx.globalCompositeOperation = 'lighter';
-            glowingTraces = glowingTraces.filter(trace => {
-                trace.update();
-                trace.draw();
-                return trace.a > 0.01;
-            });
-
-            if (beamTriggerCooldown > 0) beamTriggerCooldown--;
-
-            trackerInfo.innerText = currentHandData.length > 0 || currentFaceData 
-                ? `系統運作中 | 光暈：${glowingTraces.length} | 光柱：${lightBeams.length}` 
-                : "請進入偵測範圍...";
-
+            if (isSystemRunning) {
+                drawAura();
+                canvasCtx.globalCompositeOperation = 'lighter';
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.update();
+                    p.draw();
+                    if (p.alpha <= 0 || p.y > height + 100) particles.splice(i, 1);
+                }
+            }
             requestAnimationFrame(animate);
         }
-
         animate();
     </script>
 </body>
