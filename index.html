@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 手勢與臉部互動光柱 - 程式夥伴</title>
+    <!-- 引入 MediaPipe 必要庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+        }
+
+        /* 畫布全螢幕 */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        /* 隱藏原始影片，但保持偵測運作 */
+        #input_video {
+            display: none;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .status {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00d4ff;
+            margin-bottom: 10px;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 212, 255, 0.3);
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <p>AI 模型載入中，請稍候...</p>
+    </div>
+
+    <div id="ui-overlay">
+        <div class="status">
+            <strong>互動模式：AI 追蹤啟動</strong><br>
+            <span id="tracker-info">請揮動手掌或對準臉部</span>
+        </div>
+    </div>
+
+    <!-- 視訊輸入 -->
+    <video id="input_video"></video>
+    <!-- 繪圖畫布 -->
+    <canvas id="output_canvas"></canvas>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const loadingScreen = document.getElementById('loading-screen');
+        const trackerInfo = document.getElementById('tracker-info');
+
+        let width, height;
+        let particles = [];
+        let interactionPoints = []; // 儲存所有 AI 偵測到的座標點
+
+        function resize() {
+            width = canvasElement.width = window.innerWidth;
+            height = canvasElement.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- 粒子類別 (延續之前的光柱邏輯) ---
+        class Particle {
+            constructor(x, y, hue = 190) {
+                this.originX = x;
+                this.x = x + (Math.random() - 0.5) * 15;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 0.8;
+                this.vy = 1 + Math.random() * 6;
+                this.history = [];
+                this.maxHistory = 12 + Math.random() * 10;
+                this.hue = hue;
+                this.gravity = 0.35;
+                this.alpha = 1.0;
+                this.decay = 0.015 + Math.random() * 0.02;
+            }
+
+            update() {
+                this.vy += this.gravity;
+                this.x += (this.originX - this.x) * 0.08;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+
+                this.history.push({ x: this.x, y: this.y });
+                if (this.history.length > this.maxHistory) this.history.shift();
+            }
+
+            draw() {
+                if (this.history.length < 2 || this.alpha <= 0) return;
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(this.history[0].x, this.history[0].y);
+                for (let i = 1; i < this.history.length; i++) {
+                    canvasCtx.lineTo(this.history[i].x, this.history[i].y);
+                }
+                canvasCtx.strokeStyle = `hsla(${this.hue}, 100%, 70%, ${this.alpha})`;
+                canvasCtx.lineWidth = 1.2;
+                canvasCtx.stroke();
+            }
+        }
+
+        // --- MediaPipe 處理 ---
+        
+        // 1. 手部偵測設定
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // 2. 臉部偵測設定
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        // 處理手部結果
+        hands.onResults((results) => {
+            // 每次處理前不直接清空，由 animate 統一控制
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // 取手掌心 (Landmark 0) 與手指尖 (8, 12, 16, 20)
+                    const keyPoints = [0, 8, 12, 16, 20];
+                    keyPoints.forEach(idx => {
+                        interactionPoints.push({
+                            x: (1 - landmarks[idx].x) * width, // 1-x 達成鏡像
+                            y: landmarks[idx].y * height,
+                            hue: 190 // 藍色
+                        });
+                    });
+                }
+            }
+        });
+
+        // 處理臉部結果
+        faceMesh.onResults((results) => {
+            if (results.multiFaceLandmarks) {
+                for (const landmarks of results.multiFaceLandmarks) {
+                    // 取鼻尖 (Landmark 1) 或額頭
+                    interactionPoints.push({
+                        x: (1 - landmarks[1].x) * width,
+                        y: landmarks[1].y * height,
+                        hue: 280 // 紫色，區分臉部與手部
+                    });
+                }
+            }
+        });
+
+        // 啟動相機
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+                await faceMesh.send({image: videoElement});
+                if (loadingScreen.style.opacity !== '0') {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => loadingScreen.style.display = 'none', 500);
+                }
+            },
+            width: 1280,
+            height: 720
+        });
+        camera.start();
+
+        // --- 動畫主循環 ---
+        function animate() {
+            // 背景半透明清除 (殘影)
+            canvasCtx.globalCompositeOperation = 'source-over';
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            canvasCtx.fillRect(0, 0, width, height);
+
+            canvasCtx.globalCompositeOperation = 'lighter';
+
+            // 根據偵測點產生粒子
+            interactionPoints.forEach(pt => {
+                for (let i = 0; i < 3; i++) {
+                    particles.push(new Particle(pt.x, pt.y, pt.hue));
+                }
+            });
+            // 產生完畢後清空暫存點，等待下一影格 AI 更新
+            interactionPoints = [];
+
+            // 更新與繪製粒子
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw();
+                if (p.alpha <= 0 || p.y > height) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            // 更新 UI 資訊
+            if (particles.length > 0) {
+                trackerInfo.innerText = `偵測中：活動粒子數 ${particles.length}`;
+            } else {
+                trackerInfo.innerText = `等待偵測目標...`;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
