@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自我觀測儀 - 數位光柱互動系統</title>
+    <title>自我觀測儀 - 藝術光影系統</title>
     <!-- 引入 MediaPipe 必要庫 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -43,7 +43,7 @@
             background: rgba(0, 0, 0, 0.6);
             padding: 12px 18px;
             border-radius: 12px;
-            border-left: 4px solid #00d4ff;
+            border-left: 4px solid #FFD700;
             backdrop-filter: blur(5px);
         }
 
@@ -62,8 +62,8 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 3px solid rgba(0, 212, 255, 0.1);
-            border-top: 3px solid #00d4ff;
+            border: 3px solid rgba(255, 215, 0, 0.1);
+            border-top: 3px solid #FFD700;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -80,7 +80,7 @@
 
     <div id="ui-overlay">
         <div class="status">
-            <strong style="color: #00d4ff;">自我觀測儀</strong><br>
+            <strong style="color: #FFD700;">自我觀測儀</strong><br>
             <span id="tracker-info" style="font-size: 13px; opacity: 0.8;">請進入攝影機偵測範圍</span>
         </div>
     </div>
@@ -96,16 +96,11 @@
         const trackerInfo = document.getElementById('tracker-info');
 
         let width, height;
-        let particles = [];
-        let lightBeams = []; // 新增：光柱系統
+        let lightBeams = [];
+        let glowingTraces = []; // 金色光暈系統
         let currentHandData = [];
         let currentFaceData = null;
-        let beamTriggerCooldown = 0; // 光柱觸發冷卻
-
-        // 定義手部連接線 (MediaPipe Landmarks 索引)
-        const HAND_CONNECTIONS = [
-            [0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20], [5, 9, 13, 17, 0]
-        ];
+        let beamTriggerCooldown = 0;
 
         function resize() {
             width = canvasElement.width = window.innerWidth;
@@ -114,60 +109,71 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 粒子類別 ---
-        class Particle {
-            constructor(x, y, hue = 190) {
-                this.originX = x;
-                this.x = x + (Math.random() - 0.5) * 10;
+        // --- 金色光暈類別 ---
+        class GlowingTrace {
+            constructor(x, y) {
+                this.x = x;
                 this.y = y;
-                this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = 2 + Math.random() * 4;
-                this.history = [];
-                this.maxHistory = 60 + Math.random() * 40;
-                this.hue = hue;
-                this.gravity = 0.25;
-                this.alpha = 1.0;
-                this.decay = 0.005 + Math.random() * 0.008;
+                this.r = 30 + Math.random() * 100;
+                this.a = 0.15 + Math.random() * 0.3;
+                this.color = randomColor();
+                this.vx = (Math.random() - 0.5) * 1;
+                this.vy = (Math.random() - 0.5) * 1;
             }
 
             update() {
-                this.vy += this.gravity;
-                this.x += (this.originX - this.x) * 0.05; 
                 this.x += this.vx;
                 this.y += this.vy;
-                this.alpha -= this.decay;
-
-                this.history.push({ x: this.x, y: this.y });
-                if (this.history.length > this.maxHistory) this.history.shift();
+                this.a *= 0.985;
             }
 
             draw() {
-                if (this.history.length < 2 || this.alpha <= 0) return;
+                // 外層光暈
+                const outerGlow = canvasCtx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 1.5);
+                outerGlow.addColorStop(0, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.a * 0.8})`);
+                outerGlow.addColorStop(0.4, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},${this.a * 0.4})`);
+                outerGlow.addColorStop(1, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},0)`);
                 
                 canvasCtx.beginPath();
-                canvasCtx.moveTo(this.history[0].x, this.history[0].y);
-                for (let i = 1; i < this.history.length; i++) {
-                    canvasCtx.lineTo(this.history[i].x, this.history[i].y);
-                }
-                canvasCtx.strokeStyle = `hsla(${this.hue}, 100%, 75%, ${this.alpha})`;
-                canvasCtx.lineWidth = 1.5;
-                canvasCtx.lineCap = 'round';
-                canvasCtx.stroke();
+                canvasCtx.arc(this.x, this.y, this.r * 1.5, 0, Math.PI * 2);
+                canvasCtx.fillStyle = outerGlow;
+                canvasCtx.fill();
+                
+                // 核心金色亮點
+                const core = canvasCtx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 0.5);
+                core.addColorStop(0, `rgba(255,255,255,${this.a})`);
+                core.addColorStop(0.5, `rgba(255,240,200,${this.a * 0.6})`);
+                core.addColorStop(1, `rgba(${this.color[0]},${this.color[1]},${this.color[2]},0)`);
+                
+                canvasCtx.beginPath();
+                canvasCtx.arc(this.x, this.y, this.r * 0.5, 0, Math.PI * 2);
+                canvasCtx.fillStyle = core;
+                canvasCtx.fill();
             }
         }
 
-        // --- 戲劇化光柱類別（整合版）---
+        function randomColor() {
+            const colors = [
+                [220, 220, 255], // 冷白
+                [255, 220, 220], // 暖白
+                [220, 255, 220], // 綠白
+                [230, 220, 255], // 紫白
+                [255, 240, 220]  // 金白
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // --- 戲劇化光柱類別 ---
         class DramaticLightBeam {
             constructor(x) {
                 this.x = x;
-                this.width = 40 + Math.random() * 80;
-                this.opacity = 0.7 + Math.random() * 0.3;
+                this.width = 40 + Math.random() * 100;
+                this.opacity = 0.8 + Math.random() * 0.2;
                 this.life = 1.0;
-                this.decay = 0.004 + Math.random() * 0.006;
+                this.decay = 0.003 + Math.random() * 0.005;
                 this.flicker = Math.random() * Math.PI * 2;
                 this.pulseSpeed = 0.05 + Math.random() * 0.1;
                 
-                // 光芒效果
                 this.rays = [];
                 for (let i = 0; i < 5; i++) {
                     this.rays.push({
@@ -194,18 +200,13 @@
                     this.x, height / 2, this.width * 1.5
                 );
                 
-                mainGradient.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.9})`);
-                mainGradient.addColorStop(0.3, `rgba(255,255,240,${currentOpacity * 0.7})`);
+                mainGradient.addColorStop(0, `rgba(255,255,255,${currentOpacity})`);
+                mainGradient.addColorStop(0.3, `rgba(255,255,240,${currentOpacity * 0.8})`);
                 mainGradient.addColorStop(0.6, `rgba(255,240,200,${currentOpacity * 0.4})`);
                 mainGradient.addColorStop(1, `rgba(255,220,150,0)`);
                 
                 canvasCtx.fillStyle = mainGradient;
-                canvasCtx.fillRect(
-                    this.x - this.width * 1.5,
-                    0,
-                    this.width * 3,
-                    height
-                );
+                canvasCtx.fillRect(this.x - this.width * 1.5, 0, this.width * 3, height);
                 
                 // 核心超亮光柱
                 const coreGradient = canvasCtx.createRadialGradient(
@@ -217,12 +218,7 @@
                 coreGradient.addColorStop(1, `rgba(255,255,240,0)`);
                 
                 canvasCtx.fillStyle = coreGradient;
-                canvasCtx.fillRect(
-                    this.x - this.width * 0.2,
-                    0,
-                    this.width * 0.4,
-                    height
-                );
+                canvasCtx.fillRect(this.x - this.width * 0.2, 0, this.width * 0.4, height);
                 
                 // 光芒射線
                 this.rays.forEach(ray => {
@@ -239,10 +235,7 @@
                 });
                 
                 // 頂部光源
-                const topGlow = canvasCtx.createRadialGradient(
-                    this.x, 0, 0,
-                    this.x, 0, this.width * 2
-                );
+                const topGlow = canvasCtx.createRadialGradient(this.x, 0, 0, this.x, 0, this.width * 2);
                 topGlow.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.6})`);
                 topGlow.addColorStop(0.5, `rgba(255,255,200,${currentOpacity * 0.3})`);
                 topGlow.addColorStop(1, `rgba(255,200,100,0)`);
@@ -253,10 +246,7 @@
                 canvasCtx.fill();
                 
                 // 底部光源
-                const bottomGlow = canvasCtx.createRadialGradient(
-                    this.x, height, 0,
-                    this.x, height, this.width * 2
-                );
+                const bottomGlow = canvasCtx.createRadialGradient(this.x, height, 0, this.x, height, this.width * 2);
                 bottomGlow.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.6})`);
                 bottomGlow.addColorStop(0.5, `rgba(255,255,200,${currentOpacity * 0.3})`);
                 bottomGlow.addColorStop(1, `rgba(255,200,100,0)`);
@@ -268,71 +258,57 @@
             }
         }
 
-        // --- 繪製數位骨架 ---
-        function drawDigitalBody() {
-            canvasCtx.lineWidth = 2;
-            canvasCtx.shadowBlur = 10;
-
-            // 繪製手部
+        // --- 抽象化的數位痕跡（取代直接骨架）---
+        function drawAbstractPresence() {
+            // 只繪製抽象的光點，不顯示骨架線條
+            canvasCtx.shadowBlur = 15;
+            
+            // 手部：只顯示關鍵點的光暈
             currentHandData.forEach(hand => {
-                canvasCtx.strokeStyle = '#00f2ff';
-                canvasCtx.shadowColor = '#00f2ff';
-                HAND_CONNECTIONS.forEach(path => {
-                    canvasCtx.beginPath();
-                    for(let i=0; i<path.length; i++) {
-                        const pt = hand[path[i]];
-                        const x = (1 - pt.x) * width;
-                        const y = pt.y * height;
-                        if(i === 0) canvasCtx.moveTo(x, y);
-                        else canvasCtx.lineTo(x, y);
-                    }
-                    canvasCtx.stroke();
-                });
-                
-                // 關鍵點
-                hand.forEach(pt => {
+                [0, 4, 8, 12, 16, 20].forEach(idx => { // 掌心和指尖
+                    const pt = hand[idx];
                     const x = (1 - pt.x) * width;
                     const y = pt.y * height;
-                    canvasCtx.fillStyle = '#fff';
+                    
+                    // 微弱的藍色光暈
+                    const glow = canvasCtx.createRadialGradient(x, y, 0, x, y, 20);
+                    glow.addColorStop(0, 'rgba(0, 242, 255, 0.4)');
+                    glow.addColorStop(0.5, 'rgba(0, 212, 255, 0.2)');
+                    glow.addColorStop(1, 'rgba(0, 180, 255, 0)');
+                    
+                    canvasCtx.fillStyle = glow;
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(x, y, 20, 0, Math.PI * 2);
+                    canvasCtx.fill();
+                    
+                    // 核心小亮點
+                    canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                     canvasCtx.beginPath();
                     canvasCtx.arc(x, y, 2, 0, Math.PI * 2);
                     canvasCtx.fill();
                 });
             });
 
-            // 繪製臉部
+            // 臉部：只顯示中心點的紫色光暈
             if (currentFaceData) {
-                canvasCtx.strokeStyle = '#bc00ff';
-                canvasCtx.shadowColor = '#bc00ff';
+                const noseTip = currentFaceData[1];
+                const x = (1 - noseTip.x) * width;
+                const y = noseTip.y * height;
                 
-                const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+                const faceGlow = canvasCtx.createRadialGradient(x, y, 0, x, y, 40);
+                faceGlow.addColorStop(0, 'rgba(188, 0, 255, 0.4)');
+                faceGlow.addColorStop(0.5, 'rgba(160, 0, 220, 0.2)');
+                faceGlow.addColorStop(1, 'rgba(130, 0, 180, 0)');
                 
+                canvasCtx.fillStyle = faceGlow;
                 canvasCtx.beginPath();
-                faceOutline.forEach((idx, i) => {
-                    const pt = currentFaceData[idx];
-                    const x = (1 - pt.x) * width;
-                    const y = pt.y * height;
-                    if(i === 0) canvasCtx.moveTo(x, y);
-                    else canvasCtx.lineTo(x, y);
-                });
-                canvasCtx.closePath();
-                canvasCtx.stroke();
-
-                // 眼睛
-                const leftEye = [33, 160, 158, 133, 153, 144];
-                const rightEye = [362, 385, 387, 263, 373, 380];
-                [leftEye, rightEye].forEach(eye => {
-                    canvasCtx.beginPath();
-                    eye.forEach((idx, i) => {
-                        const pt = currentFaceData[idx];
-                        const x = (1 - pt.x) * width;
-                        const y = pt.y * height;
-                        if(i === 0) canvasCtx.moveTo(x, y);
-                        else canvasCtx.lineTo(x, y);
-                    });
-                    canvasCtx.closePath();
-                    canvasCtx.stroke();
-                });
+                canvasCtx.arc(x, y, 40, 0, Math.PI * 2);
+                canvasCtx.fill();
+                
+                canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                canvasCtx.beginPath();
+                canvasCtx.arc(x, y, 3, 0, Math.PI * 2);
+                canvasCtx.fill();
             }
             
             canvasCtx.shadowBlur = 0;
@@ -348,20 +324,23 @@
         hands.onResults((results) => {
             currentHandData = results.multiHandLandmarks || [];
             
-            // 產生粒子
+            // 產生金色光暈痕跡
             currentHandData.forEach(hand => {
-                [0, 4, 8, 12, 16, 20].forEach(idx => {
-                    for(let i=0; i<3; i++) {
-                        particles.push(new Particle((1 - hand[idx].x) * width, hand[idx].y * height, 190));
+                [4, 8, 12, 16, 20].forEach(idx => { // 指尖
+                    if (Math.random() > 0.7) {
+                        const pt = hand[idx];
+                        const x = (1 - pt.x) * width;
+                        const y = pt.y * height;
+                        glowingTraces.push(new GlowingTrace(x, y));
                     }
                 });
                 
-                // 手勢觸發光柱（延遲效果）
-                if (beamTriggerCooldown <= 0 && Math.random() > 0.85) {
-                    const fingerTip = hand[8]; // 食指尖
+                // 手勢觸發光柱
+                if (beamTriggerCooldown <= 0 && Math.random() > 0.9) {
+                    const fingerTip = hand[8];
                     const x = (1 - fingerTip.x) * width;
                     lightBeams.push(new DramaticLightBeam(x));
-                    beamTriggerCooldown = 60; // 設定冷卻時間
+                    beamTriggerCooldown = 80;
                 }
             });
         });
@@ -369,16 +348,18 @@
         faceMesh.onResults((results) => {
             currentFaceData = results.multiFaceLandmarks ? results.multiFaceLandmarks[0] : null;
             if (currentFaceData) {
-                // 臉部產生紫色粒子
-                for(let i=0; i<4; i++) {
-                    particles.push(new Particle((1 - currentFaceData[1].x) * width, currentFaceData[1].y * height, 280));
+                // 臉部產生金色光暈
+                if (Math.random() > 0.8) {
+                    const x = (1 - currentFaceData[1].x) * width;
+                    const y = currentFaceData[1].y * height;
+                    glowingTraces.push(new GlowingTrace(x, y));
                 }
                 
-                // 臉部觸發光柱（更低機率）
-                if (beamTriggerCooldown <= 0 && Math.random() > 0.95) {
+                // 臉部觸發光柱
+                if (beamTriggerCooldown <= 0 && Math.random() > 0.96) {
                     const x = (1 - currentFaceData[1].x) * width;
                     lightBeams.push(new DramaticLightBeam(x));
-                    beamTriggerCooldown = 90;
+                    beamTriggerCooldown = 100;
                 }
             }
         });
@@ -397,9 +378,9 @@
         camera.start();
 
         function animate() {
-            // 更深的黑暗背景
+            // 深黑背景
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
             canvasCtx.fillRect(0, 0, width, height);
 
             // 1. 繪製光柱（背景層）
@@ -410,26 +391,23 @@
                 return alive;
             });
 
-            // 2. 繪製數位骨架（中間層）
-            canvasCtx.globalCompositeOperation = 'source-over';
-            drawDigitalBody();
-
-            // 3. 繪製粒子（前景層）
+            // 2. 繪製抽象存在感（取代骨架）
             canvasCtx.globalCompositeOperation = 'lighter';
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.update();
-                p.draw();
-                if (p.alpha <= 0 || p.y > height + 200) {
-                    particles.splice(i, 1);
-                }
-            }
+            drawAbstractPresence();
+
+            // 3. 繪製金色光暈痕跡（前景層）
+            canvasCtx.globalCompositeOperation = 'lighter';
+            glowingTraces = glowingTraces.filter(trace => {
+                trace.update();
+                trace.draw();
+                return trace.a > 0.01;
+            });
 
             // 冷卻計數
             if (beamTriggerCooldown > 0) beamTriggerCooldown--;
 
             trackerInfo.innerText = currentHandData.length > 0 || currentFaceData 
-                ? `系統運作中 | 粒子：${particles.length} | 光柱：${lightBeams.length}` 
+                ? `系統運作中 | 光暈：${glowingTraces.length} | 光柱：${lightBeams.length}` 
                 : "請進入偵測範圍...";
 
             requestAnimationFrame(animate);
