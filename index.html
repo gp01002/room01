@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 手勢與臉部互動光柱 - 程式夥伴</title>
+    <title>AI 數位骨架與長光柱互動 - 程式夥伴</title>
     <!-- 引入 MediaPipe 必要庫 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -20,7 +20,6 @@
             font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
         }
 
-        /* 畫布全螢幕 */
         canvas {
             position: absolute;
             top: 0;
@@ -28,7 +27,6 @@
             z-index: 10;
         }
 
-        /* 隱藏原始影片，但保持偵測運作 */
         #input_video {
             display: none;
         }
@@ -43,10 +41,10 @@
 
         .status {
             background: rgba(0, 0, 0, 0.6);
-            padding: 10px 15px;
-            border-radius: 8px;
+            padding: 12px 18px;
+            border-radius: 12px;
             border-left: 4px solid #00d4ff;
-            margin-bottom: 10px;
+            backdrop-filter: blur(5px);
         }
 
         #loading-screen {
@@ -58,14 +56,14 @@
             justify-content: center;
             align-items: center;
             z-index: 100;
-            transition: opacity 0.5s;
+            transition: opacity 0.8s;
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(0, 212, 255, 0.3);
-            border-top: 4px solid #00d4ff;
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(0, 212, 255, 0.1);
+            border-top: 3px solid #00d4ff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -77,19 +75,17 @@
 
     <div id="loading-screen">
         <div class="spinner"></div>
-        <p>AI 模型載入中，請稍候...</p>
+        <p style="margin-top: 20px; letter-spacing: 2px;">初始化數位感知系統...</p>
     </div>
 
     <div id="ui-overlay">
         <div class="status">
-            <strong>互動模式：AI 追蹤啟動</strong><br>
-            <span id="tracker-info">請揮動手掌或對準臉部</span>
+            <strong style="color: #00d4ff;">DIGITAL AVATAR READY</strong><br>
+            <span id="tracker-info" style="font-size: 13px; opacity: 0.8;">請進入攝影機偵測範圍</span>
         </div>
     </div>
 
-    <!-- 視訊輸入 -->
     <video id="input_video"></video>
-    <!-- 繪圖畫布 -->
     <canvas id="output_canvas"></canvas>
 
     <script>
@@ -101,7 +97,13 @@
 
         let width, height;
         let particles = [];
-        let interactionPoints = []; // 儲存所有 AI 偵測到的座標點
+        let currentHandData = [];
+        let currentFaceData = null;
+
+        // 定義手部連接線 (MediaPipe Landmarks 索引)
+        const HAND_CONNECTIONS = [
+            [0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16], [17, 18, 19, 20], [5, 9, 13, 17, 0]
+        ];
 
         function resize() {
             width = canvasElement.width = window.innerWidth;
@@ -110,25 +112,25 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 粒子類別 (延續之前的光柱邏輯) ---
+        // --- 強化版粒子類別 (長光柱版) ---
         class Particle {
             constructor(x, y, hue = 190) {
                 this.originX = x;
-                this.x = x + (Math.random() - 0.5) * 15;
+                this.x = x + (Math.random() - 0.5) * 10;
                 this.y = y;
-                this.vx = (Math.random() - 0.5) * 0.8;
-                this.vy = 1 + Math.random() * 6;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = 2 + Math.random() * 4; // 初始速度較快
                 this.history = [];
-                this.maxHistory = 12 + Math.random() * 10;
+                this.maxHistory = 60 + Math.random() * 40; // 顯著增加歷史長度，讓光柱變長
                 this.hue = hue;
-                this.gravity = 0.35;
+                this.gravity = 0.25;
                 this.alpha = 1.0;
-                this.decay = 0.015 + Math.random() * 0.02;
+                this.decay = 0.005 + Math.random() * 0.008; // 降低衰減率，讓粒子存活更久
             }
 
             update() {
                 this.vy += this.gravity;
-                this.x += (this.originX - this.x) * 0.08;
+                this.x += (this.originX - this.x) * 0.05; 
                 this.x += this.vx;
                 this.y += this.vy;
                 this.alpha -= this.decay;
@@ -139,122 +141,148 @@
 
             draw() {
                 if (this.history.length < 2 || this.alpha <= 0) return;
+                
                 canvasCtx.beginPath();
                 canvasCtx.moveTo(this.history[0].x, this.history[0].y);
                 for (let i = 1; i < this.history.length; i++) {
                     canvasCtx.lineTo(this.history[i].x, this.history[i].y);
                 }
-                canvasCtx.strokeStyle = `hsla(${this.hue}, 100%, 70%, ${this.alpha})`;
-                canvasCtx.lineWidth = 1.2;
+                // 使用 hsla 讓顏色隨透明度淡出
+                canvasCtx.strokeStyle = `hsla(${this.hue}, 100%, 75%, ${this.alpha})`;
+                canvasCtx.lineWidth = 1.5;
+                canvasCtx.lineCap = 'round';
                 canvasCtx.stroke();
             }
         }
 
-        // --- MediaPipe 處理 ---
-        
-        // 1. 手部偵測設定
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+        // --- 繪製造型函數 ---
+        function drawDigitalBody() {
+            canvasCtx.lineWidth = 2;
+            canvasCtx.shadowBlur = 10;
 
-        // 2. 臉部偵測設定
-        const faceMesh = new FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-        });
-        faceMesh.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: true,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
+            // 1. 繪製手部造型
+            currentHandData.forEach(hand => {
+                canvasCtx.strokeStyle = '#00f2ff';
+                canvasCtx.shadowColor = '#00f2ff';
+                HAND_CONNECTIONS.forEach(path => {
+                    canvasCtx.beginPath();
+                    for(let i=0; i<path.length; i++) {
+                        const pt = hand[path[i]];
+                        const x = (1 - pt.x) * width;
+                        const y = pt.y * height;
+                        if(i === 0) canvasCtx.moveTo(x, y);
+                        else canvasCtx.lineTo(x, y);
+                    }
+                    canvasCtx.stroke();
+                });
+                
+                // 在關鍵點加上發光小圓點
+                hand.forEach(pt => {
+                    const x = (1 - pt.x) * width;
+                    const y = pt.y * height;
+                    canvasCtx.fillStyle = '#fff';
+                    canvasCtx.beginPath();
+                    canvasCtx.arc(x, y, 2, 0, Math.PI * 2);
+                    canvasCtx.fill();
+                });
+            });
 
-        // 處理手部結果
+            // 2. 繪製臉部造型 (簡約輪廓)
+            if (currentFaceData) {
+                canvasCtx.strokeStyle = '#bc00ff';
+                canvasCtx.shadowColor = '#bc00ff';
+                
+                // 臉部輪廓索引 (MediaPipe Face Mesh 輪廓部分)
+                const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+                
+                canvasCtx.beginPath();
+                faceOutline.forEach((idx, i) => {
+                    const pt = currentFaceData[idx];
+                    const x = (1 - pt.x) * width;
+                    const y = pt.y * height;
+                    if(i === 0) canvasCtx.moveTo(x, y);
+                    else canvasCtx.lineTo(x, y);
+                });
+                canvasCtx.closePath();
+                canvasCtx.stroke();
+
+                // 繪製眼睛造型
+                const leftEye = [33, 160, 158, 133, 153, 144];
+                const rightEye = [362, 385, 387, 263, 373, 380];
+                [leftEye, rightEye].forEach(eye => {
+                    canvasCtx.beginPath();
+                    eye.forEach((idx, i) => {
+                        const pt = currentFaceData[idx];
+                        const x = (1 - pt.x) * width;
+                        const y = pt.y * height;
+                        if(i === 0) canvasCtx.moveTo(x, y);
+                        else canvasCtx.lineTo(x, y);
+                    });
+                    canvasCtx.closePath();
+                    canvasCtx.stroke();
+                });
+            }
+            
+            canvasCtx.shadowBlur = 0; // 重設陰影
+        }
+
+        // --- MediaPipe 邏輯 ---
+        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+
+        const faceMesh = new FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
+        faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+
         hands.onResults((results) => {
-            // 每次處理前不直接清空，由 animate 統一控制
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    // 取手掌心 (Landmark 0) 與手指尖 (8, 12, 16, 20)
-                    const keyPoints = [0, 8, 12, 16, 20];
-                    keyPoints.forEach(idx => {
-                        interactionPoints.push({
-                            x: (1 - landmarks[idx].x) * width, // 1-x 達成鏡像
-                            y: landmarks[idx].y * height,
-                            hue: 190 // 藍色
-                        });
-                    });
-                }
-            }
+            currentHandData = results.multiHandLandmarks || [];
+            currentHandData.forEach(hand => {
+                [0, 4, 8, 12, 16, 20].forEach(idx => { // 掌心與指尖
+                    for(let i=0; i<3; i++) particles.push(new Particle((1 - hand[idx].x) * width, hand[idx].y * height, 190));
+                });
+            });
         });
 
-        // 處理臉部結果
         faceMesh.onResults((results) => {
-            if (results.multiFaceLandmarks) {
-                for (const landmarks of results.multiFaceLandmarks) {
-                    // 取鼻尖 (Landmark 1) 或額頭
-                    interactionPoints.push({
-                        x: (1 - landmarks[1].x) * width,
-                        y: landmarks[1].y * height,
-                        hue: 280 // 紫色，區分臉部與手部
-                    });
-                }
+            currentFaceData = results.multiFaceLandmarks ? results.multiFaceLandmarks[0] : null;
+            if (currentFaceData) {
+                // 臉部產生紫色粒子 (鼻尖位置)
+                for(let i=0; i<4; i++) particles.push(new Particle((1 - currentFaceData[1].x) * width, currentFaceData[1].y * height, 280));
             }
         });
 
-        // 啟動相機
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
                 await faceMesh.send({image: videoElement});
                 if (loadingScreen.style.opacity !== '0') {
                     loadingScreen.style.opacity = '0';
-                    setTimeout(() => loadingScreen.style.display = 'none', 500);
+                    setTimeout(() => loadingScreen.style.display = 'none', 800);
                 }
             },
-            width: 1280,
-            height: 720
+            width: 1280, height: 720
         });
         camera.start();
 
-        // --- 動畫主循環 ---
         function animate() {
-            // 背景半透明清除 (殘影)
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.18)'; // 稍微減少清除率，讓光柱拖尾更長
             canvasCtx.fillRect(0, 0, width, height);
 
+            // 1. 繪製數位造型 (置於光柱後方或前方皆可，這裡放在下方作為基礎)
+            drawDigitalBody();
+
+            // 2. 繪製光柱粒子
             canvasCtx.globalCompositeOperation = 'lighter';
-
-            // 根據偵測點產生粒子
-            interactionPoints.forEach(pt => {
-                for (let i = 0; i < 3; i++) {
-                    particles.push(new Particle(pt.x, pt.y, pt.hue));
-                }
-            });
-            // 產生完畢後清空暫存點，等待下一影格 AI 更新
-            interactionPoints = [];
-
-            // 更新與繪製粒子
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.update();
                 p.draw();
-                if (p.alpha <= 0 || p.y > height) {
+                if (p.alpha <= 0 || p.y > height + 200) {
                     particles.splice(i, 1);
                 }
             }
 
-            // 更新 UI 資訊
-            if (particles.length > 0) {
-                trackerInfo.innerText = `偵測中：活動粒子數 ${particles.length}`;
-            } else {
-                trackerInfo.innerText = `等待偵測目標...`;
-            }
+            trackerInfo.innerText = currentHandData.length > 0 || currentFaceData ? `系統運作中 | 活躍能量：${particles.length}` : "請進入偵測範圍...";
 
             requestAnimationFrame(animate);
         }
