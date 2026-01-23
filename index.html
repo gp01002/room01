@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 數位骨架與長光柱互動 - 程式夥伴</title>
+    <title>自我觀測儀 - 數位光柱互動系統</title>
     <!-- 引入 MediaPipe 必要庫 -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -80,7 +80,7 @@
 
     <div id="ui-overlay">
         <div class="status">
-            <strong style="color: #00d4ff;">DIGITAL AVATAR READY</strong><br>
+            <strong style="color: #00d4ff;">自我觀測儀</strong><br>
             <span id="tracker-info" style="font-size: 13px; opacity: 0.8;">請進入攝影機偵測範圍</span>
         </div>
     </div>
@@ -97,8 +97,10 @@
 
         let width, height;
         let particles = [];
+        let lightBeams = []; // 新增：光柱系統
         let currentHandData = [];
         let currentFaceData = null;
+        let beamTriggerCooldown = 0; // 光柱觸發冷卻
 
         // 定義手部連接線 (MediaPipe Landmarks 索引)
         const HAND_CONNECTIONS = [
@@ -112,20 +114,20 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 強化版粒子類別 (長光柱版) ---
+        // --- 粒子類別 ---
         class Particle {
             constructor(x, y, hue = 190) {
                 this.originX = x;
                 this.x = x + (Math.random() - 0.5) * 10;
                 this.y = y;
                 this.vx = (Math.random() - 0.5) * 0.5;
-                this.vy = 2 + Math.random() * 4; // 初始速度較快
+                this.vy = 2 + Math.random() * 4;
                 this.history = [];
-                this.maxHistory = 60 + Math.random() * 40; // 顯著增加歷史長度，讓光柱變長
+                this.maxHistory = 60 + Math.random() * 40;
                 this.hue = hue;
                 this.gravity = 0.25;
                 this.alpha = 1.0;
-                this.decay = 0.005 + Math.random() * 0.008; // 降低衰減率，讓粒子存活更久
+                this.decay = 0.005 + Math.random() * 0.008;
             }
 
             update() {
@@ -147,7 +149,6 @@
                 for (let i = 1; i < this.history.length; i++) {
                     canvasCtx.lineTo(this.history[i].x, this.history[i].y);
                 }
-                // 使用 hsla 讓顏色隨透明度淡出
                 canvasCtx.strokeStyle = `hsla(${this.hue}, 100%, 75%, ${this.alpha})`;
                 canvasCtx.lineWidth = 1.5;
                 canvasCtx.lineCap = 'round';
@@ -155,12 +156,124 @@
             }
         }
 
-        // --- 繪製造型函數 ---
+        // --- 戲劇化光柱類別（整合版）---
+        class DramaticLightBeam {
+            constructor(x) {
+                this.x = x;
+                this.width = 40 + Math.random() * 80;
+                this.opacity = 0.7 + Math.random() * 0.3;
+                this.life = 1.0;
+                this.decay = 0.004 + Math.random() * 0.006;
+                this.flicker = Math.random() * Math.PI * 2;
+                this.pulseSpeed = 0.05 + Math.random() * 0.1;
+                
+                // 光芒效果
+                this.rays = [];
+                for (let i = 0; i < 5; i++) {
+                    this.rays.push({
+                        offset: (Math.random() - 0.5) * 100,
+                        width: 5 + Math.random() * 15,
+                        opacity: 0.3 + Math.random() * 0.4
+                    });
+                }
+            }
+            
+            update() {
+                this.life -= this.decay;
+                this.flicker += this.pulseSpeed;
+                return this.life > 0;
+            }
+            
+            draw() {
+                const pulse = Math.sin(this.flicker) * 0.4 + 0.6;
+                const currentOpacity = this.opacity * this.life * pulse;
+                
+                // 主光柱
+                const mainGradient = canvasCtx.createRadialGradient(
+                    this.x, height / 2, 0,
+                    this.x, height / 2, this.width * 1.5
+                );
+                
+                mainGradient.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.9})`);
+                mainGradient.addColorStop(0.3, `rgba(255,255,240,${currentOpacity * 0.7})`);
+                mainGradient.addColorStop(0.6, `rgba(255,240,200,${currentOpacity * 0.4})`);
+                mainGradient.addColorStop(1, `rgba(255,220,150,0)`);
+                
+                canvasCtx.fillStyle = mainGradient;
+                canvasCtx.fillRect(
+                    this.x - this.width * 1.5,
+                    0,
+                    this.width * 3,
+                    height
+                );
+                
+                // 核心超亮光柱
+                const coreGradient = canvasCtx.createRadialGradient(
+                    this.x, height / 2, 0,
+                    this.x, height / 2, this.width * 0.2
+                );
+                coreGradient.addColorStop(0, `rgba(255,255,255,${Math.min(1, currentOpacity * 1.5)})`);
+                coreGradient.addColorStop(0.5, `rgba(255,255,255,${currentOpacity * 0.8})`);
+                coreGradient.addColorStop(1, `rgba(255,255,240,0)`);
+                
+                canvasCtx.fillStyle = coreGradient;
+                canvasCtx.fillRect(
+                    this.x - this.width * 0.2,
+                    0,
+                    this.width * 0.4,
+                    height
+                );
+                
+                // 光芒射線
+                this.rays.forEach(ray => {
+                    const rayX = this.x + ray.offset;
+                    const rayGradient = canvasCtx.createRadialGradient(
+                        rayX, height / 2, 0,
+                        rayX, height / 2, ray.width
+                    );
+                    rayGradient.addColorStop(0, `rgba(255,255,255,${currentOpacity * ray.opacity})`);
+                    rayGradient.addColorStop(1, `rgba(255,255,200,0)`);
+                    
+                    canvasCtx.fillStyle = rayGradient;
+                    canvasCtx.fillRect(rayX - ray.width, 0, ray.width * 2, height);
+                });
+                
+                // 頂部光源
+                const topGlow = canvasCtx.createRadialGradient(
+                    this.x, 0, 0,
+                    this.x, 0, this.width * 2
+                );
+                topGlow.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.6})`);
+                topGlow.addColorStop(0.5, `rgba(255,255,200,${currentOpacity * 0.3})`);
+                topGlow.addColorStop(1, `rgba(255,200,100,0)`);
+                
+                canvasCtx.beginPath();
+                canvasCtx.arc(this.x, 0, this.width * 2, 0, Math.PI * 2);
+                canvasCtx.fillStyle = topGlow;
+                canvasCtx.fill();
+                
+                // 底部光源
+                const bottomGlow = canvasCtx.createRadialGradient(
+                    this.x, height, 0,
+                    this.x, height, this.width * 2
+                );
+                bottomGlow.addColorStop(0, `rgba(255,255,255,${currentOpacity * 0.6})`);
+                bottomGlow.addColorStop(0.5, `rgba(255,255,200,${currentOpacity * 0.3})`);
+                bottomGlow.addColorStop(1, `rgba(255,200,100,0)`);
+                
+                canvasCtx.beginPath();
+                canvasCtx.arc(this.x, height, this.width * 2, 0, Math.PI * 2);
+                canvasCtx.fillStyle = bottomGlow;
+                canvasCtx.fill();
+            }
+        }
+
+        // --- 繪製數位骨架 ---
         function drawDigitalBody() {
             canvasCtx.lineWidth = 2;
             canvasCtx.shadowBlur = 10;
 
-            // 1. 繪製手部造型
+            // 繪製手部
             currentHandData.forEach(hand => {
                 canvasCtx.strokeStyle = '#00f2ff';
                 canvasCtx.shadowColor = '#00f2ff';
@@ -176,7 +289,7 @@
                     canvasCtx.stroke();
                 });
                 
-                // 在關鍵點加上發光小圓點
+                // 關鍵點
                 hand.forEach(pt => {
                     const x = (1 - pt.x) * width;
                     const y = pt.y * height;
@@ -187,12 +300,11 @@
                 });
             });
 
-            // 2. 繪製臉部造型 (簡約輪廓)
+            // 繪製臉部
             if (currentFaceData) {
                 canvasCtx.strokeStyle = '#bc00ff';
                 canvasCtx.shadowColor = '#bc00ff';
                 
-                // 臉部輪廓索引 (MediaPipe Face Mesh 輪廓部分)
                 const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
                 
                 canvasCtx.beginPath();
@@ -206,7 +318,7 @@
                 canvasCtx.closePath();
                 canvasCtx.stroke();
 
-                // 繪製眼睛造型
+                // 眼睛
                 const leftEye = [33, 160, 158, 133, 153, 144];
                 const rightEye = [362, 385, 387, 263, 373, 380];
                 [leftEye, rightEye].forEach(eye => {
@@ -223,7 +335,7 @@
                 });
             }
             
-            canvasCtx.shadowBlur = 0; // 重設陰影
+            canvasCtx.shadowBlur = 0;
         }
 
         // --- MediaPipe 邏輯 ---
@@ -235,18 +347,39 @@
 
         hands.onResults((results) => {
             currentHandData = results.multiHandLandmarks || [];
+            
+            // 產生粒子
             currentHandData.forEach(hand => {
-                [0, 4, 8, 12, 16, 20].forEach(idx => { // 掌心與指尖
-                    for(let i=0; i<3; i++) particles.push(new Particle((1 - hand[idx].x) * width, hand[idx].y * height, 190));
+                [0, 4, 8, 12, 16, 20].forEach(idx => {
+                    for(let i=0; i<3; i++) {
+                        particles.push(new Particle((1 - hand[idx].x) * width, hand[idx].y * height, 190));
+                    }
                 });
+                
+                // 手勢觸發光柱（延遲效果）
+                if (beamTriggerCooldown <= 0 && Math.random() > 0.85) {
+                    const fingerTip = hand[8]; // 食指尖
+                    const x = (1 - fingerTip.x) * width;
+                    lightBeams.push(new DramaticLightBeam(x));
+                    beamTriggerCooldown = 60; // 設定冷卻時間
+                }
             });
         });
 
         faceMesh.onResults((results) => {
             currentFaceData = results.multiFaceLandmarks ? results.multiFaceLandmarks[0] : null;
             if (currentFaceData) {
-                // 臉部產生紫色粒子 (鼻尖位置)
-                for(let i=0; i<4; i++) particles.push(new Particle((1 - currentFaceData[1].x) * width, currentFaceData[1].y * height, 280));
+                // 臉部產生紫色粒子
+                for(let i=0; i<4; i++) {
+                    particles.push(new Particle((1 - currentFaceData[1].x) * width, currentFaceData[1].y * height, 280));
+                }
+                
+                // 臉部觸發光柱（更低機率）
+                if (beamTriggerCooldown <= 0 && Math.random() > 0.95) {
+                    const x = (1 - currentFaceData[1].x) * width;
+                    lightBeams.push(new DramaticLightBeam(x));
+                    beamTriggerCooldown = 90;
+                }
             }
         });
 
@@ -264,14 +397,24 @@
         camera.start();
 
         function animate() {
+            // 更深的黑暗背景
             canvasCtx.globalCompositeOperation = 'source-over';
-            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.18)'; // 稍微減少清除率，讓光柱拖尾更長
+            canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
             canvasCtx.fillRect(0, 0, width, height);
 
-            // 1. 繪製數位造型 (置於光柱後方或前方皆可，這裡放在下方作為基礎)
+            // 1. 繪製光柱（背景層）
+            canvasCtx.globalCompositeOperation = 'lighter';
+            lightBeams = lightBeams.filter(beam => {
+                const alive = beam.update();
+                if (alive) beam.draw();
+                return alive;
+            });
+
+            // 2. 繪製數位骨架（中間層）
+            canvasCtx.globalCompositeOperation = 'source-over';
             drawDigitalBody();
 
-            // 2. 繪製光柱粒子
+            // 3. 繪製粒子（前景層）
             canvasCtx.globalCompositeOperation = 'lighter';
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
@@ -282,7 +425,12 @@
                 }
             }
 
-            trackerInfo.innerText = currentHandData.length > 0 || currentFaceData ? `系統運作中 | 活躍能量：${particles.length}` : "請進入偵測範圍...";
+            // 冷卻計數
+            if (beamTriggerCooldown > 0) beamTriggerCooldown--;
+
+            trackerInfo.innerText = currentHandData.length > 0 || currentFaceData 
+                ? `系統運作中 | 粒子：${particles.length} | 光柱：${lightBeams.length}` 
+                : "請進入偵測範圍...";
 
             requestAnimationFrame(animate);
         }
