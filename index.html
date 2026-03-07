@@ -624,7 +624,7 @@ function placeRoom(gltf){
   m.scale.setScalar(s); box.setFromObject(m);
   const c=box.getCenter(new THREE.Vector3());
   m.position.set(-c.x,-box.min.y-2.5,-c.z);
-  m.traverse(ch=>{ if(ch.isMesh){ ch.receiveShadow=ch.castShadow=true; const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.4); mat.roughness=1; }); }});
+  m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.55); }); }});
   scene.add(m);
   buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
 }
@@ -636,13 +636,13 @@ function makeTex(fn){ const c=document.createElement('canvas'); c.width=512; c.h
 
 function buildProceduralRoom(){
   const W=10,H=5,D=14;
-  const wt=makeTex(x=>{ x.fillStyle='#090808';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#0b0909':'#0d0b0b';x.fillRect(0,y,512,40);} x.strokeStyle='#111010';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
-  const ft=makeTex(x=>{ x.fillStyle='#080503';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(20,12%,${4+Math.random()*2}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#040301';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
-  const wm=new THREE.MeshLambertMaterial({map:wt,side:THREE.BackSide});
-  const fm=new THREE.MeshLambertMaterial({map:ft});
-  const cm=new THREE.MeshLambertMaterial({color:0x060606,side:THREE.BackSide});
+  const wt=makeTex(x=>{ x.fillStyle='#1e1a16';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#221e1a':'#281e18';x.fillRect(0,y,512,40);} x.strokeStyle='#2a2420';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
+  const ft=makeTex(x=>{ x.fillStyle='#14100a';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(20,15%,${9+Math.random()*3}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#0a0804';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
+  const wm=new THREE.MeshBasicMaterial({map:wt,side:THREE.BackSide});
+  const fm=new THREE.MeshBasicMaterial({map:ft});
+  const cm=new THREE.MeshBasicMaterial({color:0x101010,side:THREE.BackSide});
   scene.add(new THREE.Mesh(new THREE.BoxGeometry(W,H,D),[wm,wm,cm,fm,wm,wm]));
-  const sk=new THREE.MeshLambertMaterial({color:0x090601});
+  const sk=new THREE.MeshBasicMaterial({color:0x121008});
   for(const z of[-D/2+.02,D/2-.02]){const b=new THREE.Mesh(new THREE.BoxGeometry(W,.16,.03),sk);b.position.set(0,-H/2+.08,z);scene.add(b);}
   for(const x of[-W/2+.02,W/2-.02]){const b=new THREE.Mesh(new THREE.BoxGeometry(.03,.16,D),sk);b.position.set(x,-H/2+.08,0);scene.add(b);}
   buildDoor(new THREE.Vector3(2.5,-0.5,-D/2+.05));
@@ -651,7 +651,7 @@ function buildProceduralRoom(){
 }
 
 function buildDoor(pos){
-  const mat=new THREE.MeshLambertMaterial({color:0x0c0702});
+  const mat=new THREE.MeshBasicMaterial({color:0x1a1206});
   const door=new THREE.Mesh(new THREE.BoxGeometry(1.4,3,.09),mat); door.position.copy(pos); scene.add(door);
   const ec=document.createElement('canvas'); ec.width=256; ec.height=512;
   // simple door eye canvas
@@ -661,10 +661,10 @@ function buildDoor(pos){
   doorEyesMesh.position.set(pos.x,pos.y,pos.z+.07); scene.add(doorEyesMesh);
 }
 function buildPainting(x,y,z){
-  const fr=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2),new THREE.MeshLambertMaterial({color:0x100808})); fr.position.set(x,y,z); fr.rotation.y=Math.PI; scene.add(fr);
+  const fr=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2),new THREE.MeshBasicMaterial({color:0x1a0d0a})); fr.position.set(x,y,z); fr.rotation.y=Math.PI; scene.add(fr);
 }
 function buildCabinet(x,fy,z){
-  const m=new THREE.MeshLambertMaterial({color:0x0d0802}); const c=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,.6),m); c.position.set(x,fy+.8,z); scene.add(c);
+  const m=new THREE.MeshBasicMaterial({color:0x1a1208}); const c=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,.6),m); c.position.set(x,fy+.8,z); scene.add(c);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -746,7 +746,7 @@ function render(){
     if(!sw.userData.activated){
       const sc=1+Math.sin(t*2.5+sw.userData.id)*0.06;
       sw.userData.cube.scale.setScalar(sc);
-      sw.userData.light.intensity=1.0+Math.sin(t*2.5+sw.userData.id)*.5;
+      if(sw.userData.light) sw.userData.light.intensity=1.0+Math.sin(t*2.5+sw.userData.id)*.5;
     }
   });
 
