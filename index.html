@@ -341,7 +341,8 @@ function initThree(){
   clock=new THREE.Clock();
 
   loadRoom().then(()=>{
-    buildSwitches();
+    return loadSwitches();
+  }).then(()=>{
     buildAtmosphere();
     checkVR();
     renderer.setAnimationLoop(render);
@@ -354,27 +355,49 @@ function initThree(){
   setupTouch();
 }
 
-// ── GLB LOAD ──────────────────────────────────────────────────────
+// ── GLB PATHS (相對路徑，與 index.html 同一資料夾) ───────────────
+const GLB_ROOM  = 'https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
+const GLB_POWER = 'https://raw.githubusercontent.com/gp01002/room01/main/power.glb';
+
+// ── LOAD ROOM ─────────────────────────────────────────────────────
 function loadRoom(){
   return new Promise(resolve=>{
     if(typeof THREE.GLTFLoader==='undefined'){buildProceduralRoom();resolve();return;}
     document.getElementById('loader').style.display='flex';
-    new THREE.GLTFLoader().load('room.glb',
+    document.getElementById('loader-text').textContent='room.glb 0%';
+    new THREE.GLTFLoader().load(GLB_ROOM,
       gltf=>{
         const m=gltf.scene;
         const box=new THREE.Box3().setFromObject(m);
-        const s=14/Math.max(...box.getSize(new THREE.Vector3()).toArray());
+        const size=box.getSize(new THREE.Vector3());
+        const s=14/Math.max(size.x,size.y,size.z);
         m.scale.setScalar(s);
-        box.setFromObject(m);const c=box.getCenter(new THREE.Vector3());
+        box.setFromObject(m);
+        const c=box.getCenter(new THREE.Vector3());
         m.position.set(-c.x,-box.min.y-2.5,-c.z);
-        m.traverse(ch=>{if(ch.isMesh){ch.receiveShadow=true;const ms=Array.isArray(ch.material)?ch.material:[ch.material];ms.forEach(mat=>{if(mat.color)mat.color.multiplyScalar(0.4);mat.roughness=1;});}});
+        m.traverse(ch=>{
+          if(ch.isMesh){
+            ch.receiveShadow=true;ch.castShadow=true;
+            const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+            ms.forEach(mat=>{if(mat.color)mat.color.multiplyScalar(0.35);mat.roughness=1;});
+          }
+        });
         scene.add(m);
         buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
-        document.getElementById('loader').style.display='none';
+        document.getElementById('loader-text').textContent='room.glb OK';
         resolve();
       },
-      p=>{if(p.total>0){const pct=Math.round(p.loaded/p.total*100);document.getElementById('loader-bar').style.width=pct+'%';document.getElementById('loader-text').textContent='room.glb '+pct+'%';}},
-      ()=>{document.getElementById('loader').style.display='none';buildProceduralRoom();resolve();}
+      p=>{
+        if(p.total>0){
+          const pct=Math.round(p.loaded/p.total*100);
+          document.getElementById('loader-bar').style.width=pct+'%';
+          document.getElementById('loader-text').textContent='room.glb '+pct+'%';
+        }
+      },
+      err=>{
+        console.warn('room.glb failed, using procedural room',err);
+        buildProceduralRoom();resolve();
+      }
     );
   });
 }
@@ -441,31 +464,106 @@ function buildCabinet(x,fy,z){
   scene.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,0.6),mat),{position:new THREE.Vector3(x,fy+0.8,z)}));
 }
 
-// ── SWITCHES ──────────────────────────────────────────────────────
-function buildSwitches(){
+// ── SWITCHES (power.glb x3) ──────────────────────────────────────
+// 三個開關位置：左牆、後牆、右牆
+const SWITCH_DEFS=[
+  {pos:new THREE.Vector3(-4.85,0.4,-2.0), rot:new THREE.Euler(0, Math.PI/2,0)},
+  {pos:new THREE.Vector3(-0.5, 0.8,-6.8), rot:new THREE.Euler(0, 0,        0)},
+  {pos:new THREE.Vector3( 4.85,-0.5, 1.5),rot:new THREE.Euler(0,-Math.PI/2,0)},
+];
+
+function loadSwitches(){
   revealOrder=[0,1,2].sort(()=>Math.random()-0.5);
-  const defs=[
-    {pos:new THREE.Vector3(-4.85,0.4,-2.0),rot:new THREE.Euler(0,Math.PI/2,0)},
-    {pos:new THREE.Vector3(-0.5,0.8,-6.8),rot:new THREE.Euler(0,0,0)},
-    {pos:new THREE.Vector3(4.85,-0.5,1.5),rot:new THREE.Euler(0,-Math.PI/2,0)},
-  ];
-  defs.forEach((d,i)=>{
+  return new Promise(resolve=>{
+    if(typeof THREE.GLTFLoader==='undefined'){buildFallbackSwitches();resolve();return;}
+    document.getElementById('loader-text').textContent='power.glb 0%';
+    new THREE.GLTFLoader().load(GLB_POWER,
+      gltf=>{
+        document.getElementById('loader').style.display='none';
+        SWITCH_DEFS.forEach((d,i)=>{
+          const g=new THREE.Group();
+
+          // Clone the GLB model
+          const model=gltf.scene.clone(true);
+
+          // Auto-scale power.glb to ~0.5 units tall
+          const bbox=new THREE.Box3().setFromObject(model);
+          const bsize=bbox.getSize(new THREE.Vector3());
+          const sc=0.5/Math.max(bsize.x,bsize.y,bsize.z);
+          model.scale.setScalar(sc);
+
+          // Center model at origin within group
+          bbox.setFromObject(model);
+          const bc=bbox.getCenter(new THREE.Vector3());
+          model.position.sub(bc);
+
+          // Make meshes cast shadow + emissive glow to be visible in dark
+          model.traverse(ch=>{
+            if(ch.isMesh){
+              ch.castShadow=true;ch.receiveShadow=true;
+              const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+              ms.forEach(mat=>{
+                mat.emissive=mat.emissive||new THREE.Color(0);
+                mat.emissive.setHex(0x220800);
+                mat.emissiveIntensity=0.8;
+              });
+              // Tag all child meshes so raycast hit -> parent group
+              ch.name='hit';
+            }
+          });
+          g.add(model);
+
+          // Large invisible hitbox on top (easy to aim)
+          const hitbox=new THREE.Mesh(
+            new THREE.BoxGeometry(1.0,1.0,0.5),
+            new THREE.MeshBasicMaterial({visible:false})
+          );
+          hitbox.name='hit';
+          g.add(hitbox);
+
+          // Red glow light
+          const gl=new THREE.PointLight(0x660000,0.6,2.5,2);
+          g.add(gl);
+
+          g.position.copy(d.pos);
+          g.rotation.copy(d.rot);
+          g.userData={id:i,model,activated:false};
+          scene.add(g);
+          switchMeshes.push(g);
+        });
+        resolve();
+      },
+      p=>{
+        if(p.total>0){
+          const pct=Math.round(p.loaded/p.total*100);
+          document.getElementById('loader-bar').style.width=pct+'%';
+          document.getElementById('loader-text').textContent='power.glb '+pct+'%';
+        }
+      },
+      err=>{
+        console.warn('power.glb failed, using fallback switches',err);
+        document.getElementById('loader').style.display='none';
+        buildFallbackSwitches();resolve();
+      }
+    );
+  });
+}
+
+// Fallback if power.glb fails
+function buildFallbackSwitches(){
+  document.getElementById('loader').style.display='none';
+  SWITCH_DEFS.forEach((d,i)=>{
     const g=new THREE.Group();
-    // plate with subtle emissive glow so player can find it
-    const pm=new THREE.MeshLambertMaterial({color:0x1a1a1a,emissive:0x0d0808,emissiveIntensity:0.6});
+    const pm=new THREE.MeshLambertMaterial({color:0x1a1a1a,emissive:new THREE.Color(0x0d0808),emissiveIntensity:0.8});
     g.add(new THREE.Mesh(new THREE.BoxGeometry(0.2,0.3,0.04),pm));
-    // lever
     const lm=new THREE.MeshLambertMaterial({color:0x555555});
     const lever=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.16,0.05),lm);
-    lever.position.set(0,0.04,0.03);lever.name='lever';g.add(lever);
-    // large invisible hitbox - EASY TO CLICK
+    lever.position.set(0,0.04,0.03);lever.name='hit';g.add(lever);
     const hit=new THREE.Mesh(new THREE.BoxGeometry(1.0,1.0,0.5),new THREE.MeshBasicMaterial({visible:false}));
     hit.name='hit';g.add(hit);
-    // red ambient glow near switch
     const gl=new THREE.PointLight(0x550000,0.5,2,2);g.add(gl);
-
     g.position.copy(d.pos);g.rotation.copy(d.rot);
-    g.userData={id:i,lever,activated:false};
+    g.userData={id:i,model:lever,activated:false};
     scene.add(g);switchMeshes.push(g);
   });
 }
@@ -567,11 +665,23 @@ function onClick(){
 // ── SWITCH ────────────────────────────────────────────────────────
 function activateSwitch(sw){
   sw.userData.activated=true;
-  const lever=sw.userData.lever;
-  lever.rotation.z=0.55;
-  lever.material.color.setHex(0xcc0000);
-  lever.material.emissive={r:0.3,g:0,b:0};
-  sw.children.filter(c=>c.isLight).forEach(l=>{l.color.setHex(0xcc0000);l.intensity=1.0;});
+  // Animate the GLB model (rotate slightly) or fallback lever
+  const model=sw.userData.model;
+  if(model){
+    model.rotation.x=0.45; // tilt switch
+    model.traverse(ch=>{
+      if(ch.isMesh){
+        const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+        ms.forEach(m=>{
+          if(m.color)m.color.setHex(0xcc0000);
+          m.emissive=m.emissive||new THREE.Color(0);
+          m.emissive.setHex(0x660000);
+          m.emissiveIntensity=2.0;
+        });
+      }
+    });
+  }
+  sw.children.filter(c=>c.isLight).forEach(l=>{l.color.setHex(0xcc0000);l.intensity=1.2;});
   foundSwitches.add(sw.userData.id);
   document.getElementById('found-count').textContent=foundSwitches.size;
   flashScreen();playSound();
@@ -701,8 +811,19 @@ function restartGame(){
   if(!flashlightOn)toggleFlashlight();
   switchMeshes.forEach(s=>{
     s.userData.activated=false;
-    s.userData.lever.rotation.z=0;
-    s.userData.lever.material.color.setHex(0x555555);
+    const model=s.userData.model;
+    if(model){
+      model.rotation.x=0;
+      model.traverse(ch=>{
+        if(ch.isMesh){
+          const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+          ms.forEach(m=>{
+            if(m.color)m.color.setHex(0x888888);
+            if(m.emissive){m.emissive.setHex(0x220800);m.emissiveIntensity=0.8;}
+          });
+        }
+      });
+    }
     s.children.filter(c=>c.isLight).forEach(l=>{l.color.setHex(0x550000);l.intensity=0.5;});
   });
   renderer.domElement.requestPointerLock();
