@@ -1,19 +1,1 @@
-非視覺觀測: 
-腦波演算法中的的詮釋與藝術實踐 
-Non-Visual Observation: Perceptual Interpretation and Artistic Practice in EEG Algorithms 
-Perceptual Interpretation and Artistic Practice in EEG Algorithms
-Abstract (Art-Theory–Oriented Version)
 
-The human pursuit of the inner self is undergoing a profound transformation within contemporary digital culture, in which perception is increasingly mediated by algorithmic systems. Through the artwork The Self-Observatory, this research examines how subjectivity shifts from traditional modes of self-representation toward a condition of being perceived by machines. Rather than treating artificial intelligence and neurotechnology as neutral instruments of visualization, the work positions them as active agents of perception that participate in the construction, distortion, and redistribution of meaning.
-
-Departing from earlier traditions of EEG-based art that sought to aestheticize inner mental states or render neural activity visible, this study adopts a critical artistic stance. Technology is framed not as a transparent interface but as a viewing subject endowed with interpretive authority, systemic bias, and the capacity for misreading. By employing non-invasive EEG sensing and generative AI, neural signals are transformed into continuously evolving visual forms. Crucially, the system resists the ideal of faithful representation: algorithmic delay, ambiguity, and systematic misinterpretation are intentionally embedded within the visual process. These disruptions destabilize the viewer’s expectation of the image as a mirror of authentic selfhood and instead foreground the epistemic gap between lived experience and computational interpretation.
-
-Within this framework, the artwork reconfigures the act of viewing itself. The spectator is no longer positioned as a detached observer but becomes entangled in a feedback loop of perception, data extraction, and algorithmic reinterpretation. Attention is displaced from the question of resemblance—“Does this image represent who I am?”—toward a more critical inquiry: “How am I being seen, processed, and reconstructed by algorithmic systems?” This shift exposes the alienating structures of contemporary visual culture, in which subjectivity is increasingly shaped through opaque computational logics.
-
-Drawing upon psychoanalytic theory, particularly Sigmund Freud’s structural model of the psyche, the research interprets neural data as a speculative digital pathway to the unconscious. Raw EEG signals evoke the flux and indeterminacy of the id, while algorithmic constraints and model parameters function analogously to the regulatory force of the superego. The visual output emerges from the tension between these forces, producing a contingent and unstable manifestation of the ego within a computational context. Rather than offering psychological diagnosis, this psychoanalytic reading serves as an artistic lens through which the power dynamics of algorithmic interpretation can be critically examined.
-
-Ultimately, The Self-Observatory poses an existential and aesthetic question central to contemporary art discourse: when artificial intelligence assumes the role of primary observer and the self is reduced to patterns of data, does subjectivity persist in the spaces that resist full computation? This research argues that such indeterminate zones—where perception exceeds algorithmic resolution—remain crucial sites of artistic resistance. By foregrounding misinterpretation, opacity, and experiential excess, the work proposes an alternative model for AI-driven art practices and offers a critical framework for future museum exhibitions that seek to engage with algorithmic perception not as spectacle, but as a contested field of meaning.
-
-Keywords
-
-Power of Gaze; Algorithmic Alienation; Systematic Misreading; Digital Introspection; Neural Datafication
