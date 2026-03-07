@@ -624,7 +624,7 @@ function placeRoom(gltf){
   m.scale.setScalar(s); box.setFromObject(m);
   const c=box.getCenter(new THREE.Vector3());
   m.position.set(-c.x,-box.min.y-2.5,-c.z);
-  m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.42); }); }});
+  m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.25); }); }});
   scene.add(m);
   buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
 }
@@ -636,8 +636,8 @@ function makeTex(fn){ const c=document.createElement('canvas'); c.width=512; c.h
 
 function buildProceduralRoom(){
   const W=10,H=5,D=14;
-  const wt=makeTex(x=>{ x.fillStyle='#1e1a16';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#221e1a':'#281e18';x.fillRect(0,y,512,40);} x.strokeStyle='#2a2420';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
-  const ft=makeTex(x=>{ x.fillStyle='#14100a';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(20,15%,${9+Math.random()*3}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#0a0804';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
+  const wt=makeTex(x=>{ x.fillStyle='#111008';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#131009':'#16120a';x.fillRect(0,y,512,40);} x.strokeStyle='#2a2420';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
+  const ft=makeTex(x=>{ x.fillStyle='#0c0906';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(20,12%,${5+Math.random()*2}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#0a0804';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
   const wm=new THREE.MeshBasicMaterial({map:wt,side:THREE.BackSide});
   const fm=new THREE.MeshBasicMaterial({map:ft});
   const cm=new THREE.MeshBasicMaterial({color:0x101010,side:THREE.BackSide});
@@ -712,9 +712,9 @@ function buildSwitches(){
 //  ATMOSPHERE  (no flashlight)
 // ══════════════════════════════════════════════════════════════════
 function buildAtmosphere(){
-  scene.add(new THREE.AmbientLight(0x2a2018, 2.45));
+  scene.add(new THREE.AmbientLight(0x1a1208, 0.6));
 
-  ceilingLight=new THREE.PointLight(0xcc7830,3.15,22,1.5);
+  ceilingLight=new THREE.PointLight(0xaa5820,1.0,14,2);
   ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
   scene.add(ceilingLight);
 
@@ -722,8 +722,8 @@ function buildAtmosphere(){
   bulb.position.copy(ceilingLight.position); scene.add(bulb);
 
   // Fill lights at corners so room isn't pitch black
-  const fill1=new THREE.PointLight(0x4a3015,1.75,18,1.5); fill1.position.set(-4,1.5,-5); scene.add(fill1);
-  const fill2=new THREE.PointLight(0x4a3015,1.75,18,1.5); fill2.position.set( 4,1.5, 4); scene.add(fill2);
+  const fill1=new THREE.PointLight(0x3a2010,0.6,12,2); fill1.position.set(-4,1.5,-5); scene.add(fill1);
+  const fill2=new THREE.PointLight(0x3a2010,0.6,12,2); fill2.position.set( 4,1.5, 4); scene.add(fill2);
 
   // Dust particles
   const pa=new Float32Array(160*3);
@@ -739,7 +739,7 @@ function render(){
   const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
-  if(ceilingLight) ceilingLight.intensity=2.8+Math.sin(t*.9)*.15+(Math.random()<.003?-0.4:0);
+  if(ceilingLight) ceilingLight.intensity=0.9+Math.sin(t*.9)*.08+(Math.random()<.004?-0.3:0);
 
   // Cube pulse animation
   switchGroups.forEach(sw=>{
@@ -952,7 +952,7 @@ function newRound(){
   });
 
   // Restore ceiling light
-  if(ceilingLight) ceilingLight.intensity=2.8;
+  if(ceilingLight) ceilingLight.intensity=0.9;
 
   renderer.domElement.requestPointerLock();
 }
