@@ -151,6 +151,14 @@ canvas { display:block; }
 </div>
 
 <div id="hint-bar">WASD 走 動 &nbsp;|&nbsp; 滑 鼠 轉 向 &nbsp;|&nbsp; 靠 近 發 光 方 塊 點 擊</div>
+<div id="move-indicator" style="position:fixed;top:50%;right:22px;transform:translateY(-50%);pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:3px;opacity:0;transition:opacity 0.2s;">
+  <div id="mi-n"  style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▲</div>
+  <div style="display:flex;gap:3px">
+    <div id="mi-l" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">◀</div>
+    <div id="mi-s" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▼</div>
+    <div id="mi-r" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▶</div>
+  </div>
+</div>
 <div id="flash"></div>
 
 <!-- REVEAL OVERLAY -->
@@ -562,7 +570,7 @@ function skipLoader(){ skipRequested=true; }
 //  INIT
 // ══════════════════════════════════════════════════════════════════
 function initThree(){
-  scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x000000,0.06);
+  scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x050302,0.025);
   camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,0.05,60);
   camera.position.set(0,0,4); camera.rotation.order='YXZ';
   renderer=new THREE.WebGLRenderer({antialias:true});
@@ -704,14 +712,18 @@ function buildSwitches(){
 //  ATMOSPHERE  (no flashlight)
 // ══════════════════════════════════════════════════════════════════
 function buildAtmosphere(){
-  scene.add(new THREE.AmbientLight(0x111010, 0.9));
+  scene.add(new THREE.AmbientLight(0x2a2018, 3.5));
 
-  ceilingLight=new THREE.PointLight(0x8a4820,1.8,14,2);
+  ceilingLight=new THREE.PointLight(0xcc7830,4.5,22,1.5);
   ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
   scene.add(ceilingLight);
 
   const bulb=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0xaa6030}));
   bulb.position.copy(ceilingLight.position); scene.add(bulb);
+
+  // Fill lights at corners so room isn't pitch black
+  const fill1=new THREE.PointLight(0x4a3015,2.5,18,1.5); fill1.position.set(-4,1.5,-5); scene.add(fill1);
+  const fill2=new THREE.PointLight(0x4a3015,2.5,18,1.5); fill2.position.set( 4,1.5, 4); scene.add(fill2);
 
   // Dust particles
   const pa=new Float32Array(160*3);
@@ -727,7 +739,7 @@ function render(){
   const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
-  if(ceilingLight) ceilingLight.intensity=1.6+Math.sin(t*.9)*.15+(Math.random()<.003?-1:0);
+  if(ceilingLight) ceilingLight.intensity=4.0+Math.sin(t*.9)*.2+(Math.random()<.003?-0.5:0);
 
   // Cube pulse animation
   switchGroups.forEach(sw=>{
@@ -758,13 +770,28 @@ function render(){
   }
   camera.position.x=Math.max(-4.4,Math.min(4.4,camera.position.x));
   camera.position.z=Math.max(-6.6,Math.min(6.6,camera.position.z));
-  camera.position.y=0;
+
+  // Head bob when moving
+  const isMoving=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
+  camera.position.y = isMoving ? Math.sin(t*7)*0.04 : 0;
 
   // Crosshair aim
   if(gameActive){
     const sw=getAimedSwitch();
     document.getElementById('crosshair').className=sw?'aimed':'';
     document.getElementById('aim-hint').className=sw?'show':'';
+
+    // Movement indicator arrows
+    const mi=document.getElementById('move-indicator');
+    const isMovingNow=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
+    if(mi){
+      mi.style.opacity=isLocked?'1':'0';
+      const hl='rgba(200,100,0,0.8)', lo='#333';
+      document.getElementById('mi-n').style.color=(keys['KeyW']||keys['ArrowUp'])?hl:lo;
+      document.getElementById('mi-s').style.color=(keys['KeyS']||keys['ArrowDown'])?hl:lo;
+      document.getElementById('mi-l').style.color=(keys['KeyA']||keys['ArrowLeft'])?hl:lo;
+      document.getElementById('mi-r').style.color=(keys['KeyD']||keys['ArrowRight'])?hl:lo;
+    }
   }
 
   renderer.render(scene,camera);
@@ -909,7 +936,7 @@ function newRound(){
   });
 
   // Restore ceiling light
-  if(ceilingLight) ceilingLight.intensity=1.6;
+  if(ceilingLight) ceilingLight.intensity=4.0;
 
   renderer.domElement.requestPointerLock();
 }
