@@ -409,7 +409,7 @@ function initThree(){
 // ══════════════════════════════════════════════════════════
 function loadAll(){
   // Show skip button after 5 seconds in case download stalls
-  const skipTimer = setTimeout(showSkipBtn, 5000);
+  const skipTimer = setTimeout(showSkipBtn, 2000);
 
   return loadGLB(ROOM_URL, 'room.glb')
     .then(gltf=>{
@@ -423,40 +423,31 @@ function loadAll(){
     });
 }
 
-// Generic GLB loader — resolves with gltf or null on failure/skip
+// Generic GLB loader — always resolves, never hangs forever
+// Hard timeout: 8s | No-response timeout: 3s
 function loadGLB(url, label){
   return new Promise(resolve=>{
     if(typeof THREE.GLTFLoader==='undefined'){ resolve(null); return; }
     showLoader(label+' 載入中...');
-    const loader = new THREE.GLTFLoader();
-    let done = false;
+    let done=false, lastProgress=Date.now();
 
-    // Poll skip flag
-    const poll = setInterval(()=>{
-      if(skipRequested && !done){
-        done=true; clearInterval(poll);
-        console.warn(label+' skipped by user');
-        resolve(null);
-      }
-    }, 200);
+    function finish(gltf, msg){
+      if(done) return; done=true;
+      clearInterval(pollId); clearTimeout(hardTid); clearTimeout(noRespTid);
+      loaderPct(100, msg); resolve(gltf);
+    }
 
-    loader.load(url,
-      gltf=>{
-        if(done) return;
-        done=true; clearInterval(poll);
-        loaderPct(100, label+' ✓');
-        resolve(gltf);
-      },
-      p=>{
-        if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100), label+' '+Math.round(p.loaded/p.total*100)+'%');
-      },
-      err=>{
-        if(done) return;
-        done=true; clearInterval(poll);
-        console.warn(label+' 載入失敗，使用預設', err.message||err);
-        loaderPct(100, label+' 失敗，使用預設');
-        resolve(null);
-      }
+    // 8-second hard cap — no matter what
+    const hardTid = setTimeout(()=>finish(null, label+' 超時，使用預設'), 8000);
+    // 3-second no-response cap — if zero progress events received
+    const noRespTid = setTimeout(()=>{ if(Date.now()-lastProgress>2800) finish(null, label+' 無回應，使用預設'); }, 3000);
+    // User skip button poll
+    const pollId = setInterval(()=>{ if(skipRequested) finish(null, label+' 略過'); }, 200);
+
+    new THREE.GLTFLoader().load(url,
+      gltf => finish(gltf, label+' ✓'),
+      p => { lastProgress=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100), label+' '+Math.round(p.loaded/p.total*100)+'%'); },
+      err => { finish(null, label+' 失敗，使用預設'); console.warn(label, err.message||err); }
     );
   });
 }
