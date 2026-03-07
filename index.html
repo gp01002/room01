@@ -552,7 +552,7 @@ let skipRequested=false;
 let countdownTimer=null;
 let usedItemsThisRound=[];
 
-const RC = new THREE.Raycaster(); RC.far=7;
+const RC = new THREE.Raycaster(); RC.far=12;
 const keys={};
 document.addEventListener('keydown',e=>{ keys[e.code]=true; });
 document.addEventListener('keyup',e=>{ keys[e.code]=false; });
@@ -671,9 +671,10 @@ function buildCabinet(x,fy,z){
 //  GLOWING CUBE SWITCHES  ← 3 switches, each a coloured glowing cube
 // ══════════════════════════════════════════════════════════════════
 const SWITCH_DEFS=[
-  { pos:new THREE.Vector3(-4.8, 0.5,-2.0), rot:new THREE.Euler(0, Math.PI/2,0),  color:0x00aaff, glowColor:0x0044ff },
-  { pos:new THREE.Vector3(-0.5, 0.8,-6.7), rot:new THREE.Euler(0, 0,         0), color:0xff4400, glowColor:0xff0000 },
-  { pos:new THREE.Vector3( 4.8,-0.4, 1.5), rot:new THREE.Euler(0,-Math.PI/2,0),  color:0x00ff88, glowColor:0x00aa44 },
+  // 三角形分布在房間中央，Y=0.6 眼睛高度，不靠牆
+  { pos:new THREE.Vector3(-2.5, 0.6, -1.0), rot:new THREE.Euler(0,0,0), color:0x00aaff, glowColor:0x0055ff },
+  { pos:new THREE.Vector3( 2.5, 0.6, -1.0), rot:new THREE.Euler(0,0,0), color:0xff4400, glowColor:0xff1100 },
+  { pos:new THREE.Vector3( 0.0, 0.6, -4.5), rot:new THREE.Euler(0,0,0), color:0x00ff88, glowColor:0x00cc55 },
 ];
 
 function buildSwitches(){
@@ -682,21 +683,21 @@ function buildSwitches(){
 
     // Glowing cube — MeshBasicMaterial so it appears lit regardless of lights
     const cubeMat=new THREE.MeshBasicMaterial({ color:def.color });
-    const cube=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), cubeMat);
+    const cube=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), cubeMat);
     cube.name='cube';
     g.add(cube);
 
     // Pulsing point light
-    const light=new THREE.PointLight(def.glowColor, 1.2, 4, 2);
+    const light=new THREE.PointLight(def.glowColor, 2.5, 7, 1.5);
     g.add(light);
     g.userData.light=light;
 
     // Wireframe outline
     const wireMat=new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true, transparent:true, opacity:0.2 });
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,0.32), wireMat));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.54,0.54,0.54), wireMat));
 
     // Large invisible hitbox
-    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.0,1.0,0.8), new THREE.MeshBasicMaterial({visible:false}));
+    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2), new THREE.MeshBasicMaterial({visible:false}));
     hitbox.name='hit';
     g.add(hitbox);
 
@@ -744,9 +745,9 @@ function render(){
   // Cube pulse animation
   switchGroups.forEach(sw=>{
     if(!sw.userData.activated){
-      const sc=1+Math.sin(t*2.5+sw.userData.id)*0.06;
+      const sc=1+Math.sin(t*2.5+sw.userData.id)*0.18;
       sw.userData.cube.scale.setScalar(sc);
-      if(sw.userData.light) sw.userData.light.intensity=1.0+Math.sin(t*2.5+sw.userData.id)*.5;
+      if(sw.userData.light) sw.userData.light.intensity=2.0+Math.sin(t*2.5+sw.userData.id)*1.0;
     }
   });
 
@@ -947,7 +948,7 @@ function newRound(){
     sw.userData.activated=false;
     sw.userData.cube.material.color.setHex(SWITCH_DEFS[i].color);
     sw.userData.light.color.setHex(SWITCH_DEFS[i].glowColor);
-    sw.userData.light.intensity=1.2;
+    sw.userData.light.intensity=2.5;
     sw.userData.cube.scale.setScalar(1);
   });
 
