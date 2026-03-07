@@ -137,7 +137,7 @@ canvas { display:block; }
 <div id="hud">
   <div style="animation:flick 5s infinite">── 恐 怖 房 間 ──</div>
   <div id="hud-right">
-    <div id="hud-count">開 關 &nbsp;<span id="found-count">0</span>&nbsp;/&nbsp;3</div>
+    <div id="hud-count">開 關 &nbsp;<span id="found-count">1</span>&nbsp;/&nbsp;3</div>
     <div id="round-label">第 <span id="round-num">1</span> 輪</div>
   </div>
 </div>
@@ -543,8 +543,10 @@ const ITEMS = [
 // ══════════════════════════════════════════════════════════════════
 let scene, camera, renderer, clock;
 let yaw=0, pitch=0, isLocked=false, gameActive=false;
-let switchGroups=[], foundInRound=new Set();
-let round=1, revealIdx=0;
+let switchGroups=[];
+let currentSwitchIdx=0;  // 目前第幾個開關 (0,1,2)
+let round=1;
+let sceneBright=false;  // 場景是否亮起
 let doorEyesMesh=null, doorEyesActive=false;
 let ceilingLight=null;
 let t=0;
@@ -585,19 +587,21 @@ function initThree(){
   document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; });
   setupTouch();
 
-  loadRoomGLB().then(()=>{
-    buildSwitches();
-    buildAtmosphere();
-    checkVR();
-    renderer.setAnimationLoop(render);
-    hideLoader();
-  });
+  loadRoomGLB()
+    .then(()=> loadPowerGLB())
+    .then(()=>{
+      buildAtmosphere();
+      checkVR();
+      renderer.setAnimationLoop(render);
+      hideLoader();
+    });
 }
 
 // ══════════════════════════════════════════════════════════════════
 //  GLB LOADER
 // ══════════════════════════════════════════════════════════════════
 const ROOM_URL='https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
+const POWER_URL='https://raw.githubusercontent.com/gp01002/room01/main/power.glb';
 
 function loadRoomGLB(){
   return new Promise(resolve=>{
@@ -627,6 +631,26 @@ function placeRoom(gltf){
   m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.25); }); }});
   scene.add(m);
   buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  LOAD POWER.GLB (開關模型)
+// ══════════════════════════════════════════════════════════════════
+function loadPowerGLB(){
+  return new Promise(resolve=>{
+    if(typeof THREE.GLTFLoader==='undefined'){ buildSwitches(null); resolve(); return; }
+    loaderPct(0,'power.glb 載入中...');
+    let done=false, lastProg=Date.now();
+    const hardTid=setTimeout(()=>fin(null),8000);
+    const noRespTid=setTimeout(()=>{ if(Date.now()-lastProg>2800)fin(null); },3000);
+    const pollId=setInterval(()=>{ if(skipRequested)fin(null); },200);
+    function fin(g){ if(done)return; done=true; clearTimeout(hardTid);clearTimeout(noRespTid);clearInterval(pollId); loaderPct(100,g?'power.glb ✓':'power.glb 使用預設'); buildSwitches(g); resolve(); }
+    new THREE.GLTFLoader().load(POWER_URL,
+      g=>fin(g),
+      p=>{ lastProg=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100),'power.glb '+Math.round(p.loaded/p.total*100)+'%'); },
+      ()=>fin(null)
+    );
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -677,33 +701,61 @@ const SWITCH_DEFS=[
   { pos:new THREE.Vector3( 0.0, 0.6, -4.5), rot:new THREE.Euler(0,0,0), color:0x00ff88, glowColor:0x00cc55 },
 ];
 
-function buildSwitches(){
+function buildSwitches(powerGltf){
   SWITCH_DEFS.forEach((def,i)=>{
     const g=new THREE.Group();
+    let visualMesh; // the main visible object (cube or glb model)
 
-    // Glowing cube — MeshBasicMaterial so it appears lit regardless of lights
-    const cubeMat=new THREE.MeshBasicMaterial({ color:def.color });
-    const cube=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5), cubeMat);
-    cube.name='cube';
-    g.add(cube);
+    if(powerGltf){
+      // ── 使用 power.glb 模型 ──────────────────────────────────────
+      const model=powerGltf.scene.clone(true);
+      const bbox=new THREE.Box3().setFromObject(model);
+      const bsize=bbox.getSize(new THREE.Vector3());
+      const sc=0.55/Math.max(bsize.x,bsize.y,bsize.z);
+      model.scale.setScalar(sc);
+      bbox.setFromObject(model);
+      const bc=bbox.getCenter(new THREE.Vector3());
+      model.position.sub(bc); // center at origin
+      // Add emissive glow tint matching each switch's colour
+      model.traverse(ch=>{
+        if(ch.isMesh){
+          const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+          ms.forEach(mat=>{
+            mat=mat.clone();
+            mat.emissive=new THREE.Color(def.color);
+            mat.emissiveIntensity=0.55;
+          });
+        }
+      });
+      g.add(model);
+      visualMesh=model;
+      // Colour indicator ring behind model
+      const ringMat=new THREE.MeshBasicMaterial({color:def.color,transparent:true,opacity:0.35,side:THREE.DoubleSide});
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(0.35,0.04,8,24),ringMat);
+      ring.rotation.x=Math.PI/2;
+      g.add(ring);
+    } else {
+      // ── Fallback: 發光方塊 ──────────────────────────────────────
+      const cubeMat=new THREE.MeshBasicMaterial({color:def.color});
+      const cube=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5),cubeMat);
+      cube.name='cube'; g.add(cube);
+      const wireMat=new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:0.2});
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(0.54,0.54,0.54),wireMat));
+      visualMesh=cube;
+    }
 
-    // Pulsing point light
-    const light=new THREE.PointLight(def.glowColor, 2.5, 7, 1.5);
+    // Pulsing point light (always present)
+    const light=new THREE.PointLight(def.glowColor,2.5,7,1.5);
     g.add(light);
-    g.userData.light=light;
-
-    // Wireframe outline
-    const wireMat=new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true, transparent:true, opacity:0.2 });
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.54,0.54,0.54), wireMat));
 
     // Large invisible hitbox
-    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2), new THREE.MeshBasicMaterial({visible:false}));
-    hitbox.name='hit';
-    g.add(hitbox);
+    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.2,1.2),new THREE.MeshBasicMaterial({visible:false}));
+    hitbox.name='hit'; g.add(hitbox);
 
     g.position.copy(def.pos);
     g.rotation.copy(def.rot);
-    g.userData={ id:i, activated:false, cube };
+    g.userData={id:i, activated:false, visualMesh, light};
+    g.visible = (i===0);  // 只顯示第0個
     scene.add(g);
     switchGroups.push(g);
   });
@@ -713,7 +765,8 @@ function buildSwitches(){
 //  ATMOSPHERE  (no flashlight)
 // ══════════════════════════════════════════════════════════════════
 function buildAtmosphere(){
-  scene.add(new THREE.AmbientLight(0x1a1208, 0.6));
+  window.ambientLight=new THREE.AmbientLight(0x1a1208, 0.6);
+  scene.add(window.ambientLight);
 
   ceilingLight=new THREE.PointLight(0xaa5820,1.0,14,2);
   ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
@@ -722,9 +775,8 @@ function buildAtmosphere(){
   const bulb=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0xaa6030}));
   bulb.position.copy(ceilingLight.position); scene.add(bulb);
 
-  // Fill lights at corners so room isn't pitch black
-  const fill1=new THREE.PointLight(0x3a2010,0.6,12,2); fill1.position.set(-4,1.5,-5); scene.add(fill1);
-  const fill2=new THREE.PointLight(0x3a2010,0.6,12,2); fill2.position.set( 4,1.5, 4); scene.add(fill2);
+  window.fill1=new THREE.PointLight(0x3a2010,0.6,12,2); fill1.position.set(-4,1.5,-5); scene.add(fill1);
+  window.fill2=new THREE.PointLight(0x3a2010,0.6,12,2); fill2.position.set( 4,1.5, 4); scene.add(fill2);
 
   // Dust particles
   const pa=new Float32Array(160*3);
@@ -740,13 +792,13 @@ function render(){
   const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
-  if(ceilingLight) ceilingLight.intensity=0.9+Math.sin(t*.9)*.08+(Math.random()<.004?-0.3:0);
+  if(ceilingLight && !sceneBright) ceilingLight.intensity=0.9+Math.sin(t*.9)*.08+(Math.random()<.004?-0.3:0);
 
   // Cube pulse animation
   switchGroups.forEach(sw=>{
     if(!sw.userData.activated){
       const sc=1+Math.sin(t*2.5+sw.userData.id)*0.18;
-      sw.userData.cube.scale.setScalar(sc);
+      if(sw.userData.visualMesh) sw.userData.visualMesh.scale.setScalar(sc);
       if(sw.userData.light) sw.userData.light.intensity=2.0+Math.sin(t*2.5+sw.userData.id)*1.0;
     }
   });
@@ -776,6 +828,9 @@ function render(){
   const isMoving=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
   camera.position.y = isMoving ? Math.sin(t*7)*0.04 : 0;
 
+  // 場景亮起時停止天花板閃爍
+  if(sceneBright && ceilingLight) ceilingLight.intensity=5.0;
+
   // Crosshair aim
   if(gameActive){
     const sw=getAimedSwitch();
@@ -803,12 +858,12 @@ function render(){
 // ══════════════════════════════════════════════════════════════════
 function getAimedSwitch(){
   RC.setFromCamera({x:0,y:0},camera);
-  const hitboxes=switchGroups.map(s=>s.children.find(c=>c.name==='hit')).filter(Boolean);
+  const active=switchGroups.filter(s=>s.visible&&!s.userData.activated);
+  const hitboxes=active.map(s=>s.children.find(c=>c.name==='hit')).filter(Boolean);
   if(!hitboxes.length) return null;
   const hits=RC.intersectObjects(hitboxes,false);
   if(!hits.length) return null;
-  const g=switchGroups.find(sg=>sg.children.includes(hits[0].object));
-  return (g&&!g.userData.activated) ? g : null;
+  return active.find(sg=>sg.children.includes(hits[0].object))||null;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -831,130 +886,127 @@ function onClick(){
 // ══════════════════════════════════════════════════════════════════
 function activateSwitch(sw){
   sw.userData.activated=true;
-  // Cube turns dark red when used
-  sw.userData.cube.material.color.setHex(0x440000);
-  sw.userData.light.color.setHex(0xcc0000);
-  sw.userData.light.intensity=0.4;
-
-  foundInRound.add(sw.userData.id);
-  document.getElementById('found-count').textContent=foundInRound.size;
+  // 開關變暗
+  if(sw.userData.light){ sw.userData.light.intensity=0; }
 
   flashScreen(); playSound();
 
-  // Pick a random item — avoid repeating within the round if possible
-  let idx;
+  // 場景亮起
+  brightenScene();
+
+  // 選隨機物品
   const available=ITEMS.map((_,i)=>i).filter(i=>!usedItemsThisRound.includes(i));
-  idx = available.length ? available[Math.floor(Math.random()*available.length)] : Math.floor(Math.random()*ITEMS.length);
+  const idx = available.length ? available[Math.floor(Math.random()*available.length)] : Math.floor(Math.random()*ITEMS.length);
   usedItemsThisRound.push(idx);
 
-  setTimeout(()=>showReveal(idx), 280);
+  setTimeout(()=>showReveal(idx, startDarkCountdown), 350);
+}
+
+function brightenScene(){
+  sceneBright=true;
+  if(window.ambientLight) window.ambientLight.intensity=4.0;
+  if(ceilingLight){ ceilingLight.intensity=5.0; ceilingLight.color.setHex(0xffe8c0); }
+  if(window.fill1){ fill1.intensity=3.5; fill1.color.setHex(0xffd090); }
+  if(window.fill2){ fill2.intensity=3.5; fill2.color.setHex(0xffd090); }
+}
+
+function darkenScene(){
+  sceneBright=false;
+  if(window.ambientLight) window.ambientLight.intensity=0.6;
+  if(ceilingLight){ ceilingLight.intensity=0.9; ceilingLight.color.setHex(0xaa5820); }
+  if(window.fill1){ fill1.intensity=0.6; fill1.color.setHex(0x3a2010); }
+  if(window.fill2){ fill2.intensity=0.6; fill2.color.setHex(0x3a2010); }
 }
 
 // ══════════════════════════════════════════════════════════════════
 //  REVEAL ITEM
 // ══════════════════════════════════════════════════════════════════
-function showReveal(idx){
+let _revealCallback=null;
+
+function showReveal(idx, callback){
   if(isLocked) document.exitPointerLock();
+  _revealCallback=callback||null;
   const item=ITEMS[idx];
   const cvs=document.getElementById('reveal-canvas');
   item.draw(cvs.getContext('2d'), cvs.width, cvs.height);
   document.getElementById('reveal-item-name').textContent=item.name;
   document.getElementById('reveal-model-hint').textContent='↗ 3D 模 型 ：'+item.modelName;
-  // If this is the 3rd switch → button says 關燈
-  const isLast = foundInRound.size>=3;
   const btn=document.getElementById('close-btn');
-  if(isLast){
-    btn.textContent='關 燈';
-    btn.style.borderColor='#880000';
-    btn.style.color='#aa0000';
-    btn.style.boxShadow='0 0 18px #44000066';
-    // Add scary subtitle
-    document.getElementById('reveal-model-hint').textContent='⚠ 關 燈 才 能 繼 續 ⚠';
-  } else {
-    btn.textContent='繼 續 探 索';
-    btn.style.borderColor='';
-    btn.style.color='';
-    btn.style.boxShadow='';
-  }
+  btn.textContent='關 閉';
+  btn.style.borderColor=''; btn.style.color=''; btn.style.boxShadow='';
   document.getElementById('reveal-screen').classList.add('show');
-  playSound();
 }
 
 function closeReveal(){
   document.getElementById('reveal-screen').classList.remove('show');
-
-  // Check if all 3 switches found
-  if(foundInRound.size>=3){
-    startCountdown();
-  } else {
-    renderer.domElement.requestPointerLock();
-  }
+  if(_revealCallback){ _revealCallback(); _revealCallback=null; }
+  else renderer.domElement.requestPointerLock();
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  10-SECOND COUNTDOWN → LIGHTS OUT → NEW ROUND
+//  10秒倒數 → 場景變暗 → 下一個開關 (或新一輪)
 // ══════════════════════════════════════════════════════════════════
-function startCountdown(){
+function startDarkCountdown(){
+  renderer.domElement.requestPointerLock();
   let secs=10;
   document.getElementById('countdown-wrap').style.display='block';
   document.getElementById('countdown-num').textContent=secs;
-  renderer.domElement.requestPointerLock();
+  document.getElementById('countdown-label').textContent='燈 即 將 熄 滅';
 
   countdownTimer=setInterval(()=>{
     secs--;
     document.getElementById('countdown-num').textContent=secs;
-
-    // Flicker ceiling light more intensely near end
-    if(ceilingLight && secs<=3){
-      ceilingLight.intensity=Math.random()<0.5?0:0.5;
+    // 快熄滅時閃爍
+    if(secs<=3 && ceilingLight){
+      ceilingLight.intensity=Math.random()<0.5?0.2:4.5;
     }
-
     if(secs<=0){
       clearInterval(countdownTimer);
-      lightsOut();
+      document.getElementById('countdown-wrap').style.display='none';
+      goNextSwitch();
     }
   },1000);
 }
 
-function lightsOut(){
-  document.getElementById('countdown-wrap').style.display='none';
-  if(isLocked) document.exitPointerLock();
+function goNextSwitch(){
+  // 場景先變暗
+  darkenScene();
+  flashScreen();
 
-  // Fade to black
-  const blackout=document.getElementById('blackout');
-  blackout.classList.add('fade');
+  currentSwitchIdx++;
 
-  if(ceilingLight) ceilingLight.intensity=0;
-
-  setTimeout(()=>{
-    document.getElementById('new-round-msg').classList.add('show');
+  if(currentSwitchIdx >= switchGroups.length){
+    // 三個都按完 → 新一輪
+    setTimeout(()=>startNewRound(), 600);
+  } else {
+    // 顯示下一個開關
     setTimeout(()=>{
-      document.getElementById('new-round-msg').classList.remove('show');
-      newRound();
-      blackout.classList.remove('fade');
-    }, 2000);
-  }, 900);
+      const sw=switchGroups[currentSwitchIdx];
+      sw.visible=true;
+      sw.userData.activated=false;
+      if(sw.userData.light) sw.userData.light.intensity=2.5;
+      document.getElementById('found-count').textContent=currentSwitchIdx+1;
+      renderer.domElement.requestPointerLock();
+    }, 600);
+  }
 }
 
-function newRound(){
+function startNewRound(){
   round++;
-  document.getElementById('round-num').textContent=round;
-  foundInRound.clear();
+  currentSwitchIdx=0;
   usedItemsThisRound=[];
-  document.getElementById('found-count').textContent='0';
+  document.getElementById('round-num').textContent=round;
+  document.getElementById('found-count').textContent='1';
 
-  // Reset switches — new glowing cubes
+  // 重置所有開關，只顯示第0個
   switchGroups.forEach((sw,i)=>{
     sw.userData.activated=false;
-    sw.userData.cube.material.color.setHex(SWITCH_DEFS[i].color);
-    sw.userData.light.color.setHex(SWITCH_DEFS[i].glowColor);
-    sw.userData.light.intensity=2.5;
-    sw.userData.cube.scale.setScalar(1);
+    sw.visible=(i===0);
+    if(sw.userData.light){ sw.userData.light.color.setHex(SWITCH_DEFS[i].glowColor); sw.userData.light.intensity=2.5; }
+    if(sw.userData.visualMesh) sw.userData.visualMesh.scale.setScalar(1);
   });
 
-  // Restore ceiling light
-  if(ceilingLight) ceilingLight.intensity=0.9;
-
+  darkenScene();
   renderer.domElement.requestPointerLock();
 }
 
