@@ -9,193 +9,167 @@
 body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
 canvas { display:block; }
 
+/* ── START ── */
 #start-screen {
   position:fixed; inset:0; background:#000;
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center; z-index:100;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100;
 }
-#start-title {
-  color:#8b0000; font-size:2.2rem; letter-spacing:12px;
-  text-shadow:0 0 40px #ff0000; animation:flick 3s infinite;
-  margin-bottom:10px;
-}
-#start-sub { color:#2a2a2a; font-size:0.68rem; letter-spacing:6px; margin-bottom:50px; }
+#start-title { color:#8b0000; font-size:2.2rem; letter-spacing:14px; text-shadow:0 0 40px #ff0000; animation:flick 3s infinite; margin-bottom:8px; }
+#start-sub { color:#252525; font-size:0.68rem; letter-spacing:6px; margin-bottom:50px; }
 .btn {
-  padding:12px 42px; background:transparent;
-  border:1px solid #550000; color:#550000;
-  font-size:0.72rem; letter-spacing:5px; cursor:pointer;
-  transition:all 0.3s; margin:5px;
+  padding:12px 42px; background:transparent; border:1px solid #550000; color:#550000;
+  font-size:0.72rem; letter-spacing:5px; cursor:pointer; transition:all 0.3s; margin:5px;
   font-family:'Courier New',monospace;
 }
 .btn:hover { background:#55000018; box-shadow:0 0 18px #55000055; color:#cc0000; border-color:#cc0000; }
-.btn.dim { border-color:#1e1e1e; color:#1e1e1e; font-size:0.6rem; }
+.btn.dim { border-color:#1a1a1a; color:#1a1a1a; font-size:0.6rem; }
 
+/* ── HUD ── */
 #hud {
   position:fixed; top:0; left:0; right:0; padding:14px 22px;
   background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent);
-  display:flex; justify-content:space-between;
-  pointer-events:none; z-index:10;
-  color:#440000; font-size:0.68rem; letter-spacing:4px;
+  display:flex; justify-content:space-between; align-items:center;
+  pointer-events:none; z-index:10; color:#440000; font-size:0.65rem; letter-spacing:4px;
 }
+#hud-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 #hud-count span { color:#cc0000; }
+#round-label { color:#222; font-size:0.55rem; letter-spacing:3px; }
 
-/* crosshair */
-#crosshair {
-  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-  pointer-events:none; z-index:20; width:20px; height:20px;
-}
-#ch-h,#ch-v { position:absolute; background:rgba(255,255,255,0.4); }
+/* ── CROSSHAIR ── */
+#crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:20; width:20px; height:20px; }
+#ch-h,#ch-v { position:absolute; background:rgba(255,255,255,0.38); }
 #ch-h { width:14px; height:1px; top:9px; left:3px; }
 #ch-v { width:1px; height:14px; top:3px; left:9px; }
-#crosshair.aimed #ch-h,#crosshair.aimed #ch-v { background:rgba(255,90,0,0.95); }
-
+#crosshair.aimed #ch-h, #crosshair.aimed #ch-v { background:rgba(255,100,0,0.95); }
 #aim-hint {
   position:fixed; top:57%; left:50%; transform:translateX(-50%);
-  color:#cc4400; font-size:0.6rem; letter-spacing:5px;
+  color:#bb3300; font-size:0.6rem; letter-spacing:5px;
   pointer-events:none; z-index:20; opacity:0; transition:opacity 0.15s;
 }
 #aim-hint.show { opacity:1; }
 
-/* flashlight */
-#fl-ui {
-  position:fixed; bottom:22px; right:22px; z-index:15;
-  display:none; flex-direction:column; align-items:center; gap:5px;
+/* ── COUNTDOWN ── */
+#countdown-wrap {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+  pointer-events:none; z-index:15; text-align:center; display:none;
 }
-#fl-btn {
-  width:46px; height:46px; border-radius:50%;
-  border:1px solid #2a2a2a; background:rgba(0,0,0,0.6);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; transition:all 0.3s;
-}
-#fl-btn.on { border-color:#998855; box-shadow:0 0 14px #ffaa3333; }
-#fl-icon { opacity:0.25; transition:opacity 0.3s; }
-#fl-btn.on #fl-icon { opacity:1; }
-#fl-key { color:#282828; font-size:0.5rem; letter-spacing:3px; pointer-events:none; }
+#countdown-num { color:#8b0000; font-size:3rem; letter-spacing:8px; text-shadow:0 0 30px #ff0000; animation:flick 0.8s infinite; }
+#countdown-label { color:#333; font-size:0.55rem; letter-spacing:5px; margin-top:4px; }
 
-#hint-bar {
-  position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
-  color:#1a1a1a; font-size:0.55rem; letter-spacing:3px;
-  pointer-events:none; z-index:10; transition:opacity 2s;
-}
-
-/* loader overlay */
-#loader {
-  position:fixed; inset:0; background:#000; z-index:200;
-  display:none; flex-direction:column; align-items:center; justify-content:center;
-}
-#loader-label { color:#330000; font-size:0.65rem; letter-spacing:6px; }
-#loader-track { width:240px; height:2px; background:#111; margin:18px 0 10px; }
-#loader-fill { height:100%; width:0%; background:#550000; transition:width 0.15s; }
-#loader-msg { color:#2a2a2a; font-size:0.58rem; letter-spacing:4px; }
-#loader-skip {
-  margin-top:30px; padding:8px 28px; background:transparent;
-  border:1px solid #1a1a1a; color:#1a1a1a;
-  font-size:0.55rem; letter-spacing:4px; cursor:pointer;
-  font-family:'Courier New',monospace; display:none;
-}
-#loader-skip:hover { border-color:#440000; color:#440000; }
-
-#flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
-
-/* reveal */
+/* ── REVEAL ── */
 #reveal-screen {
   position:fixed; inset:0; background:rgba(0,0,0,0.93);
   display:none; flex-direction:column; align-items:center; justify-content:center; z-index:50;
 }
 #reveal-screen.show { display:flex; animation:fadeIn 0.2s; }
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-#reveal-wrap { animation:glitchIn 0.45s forwards; }
+#reveal-wrap { animation:glitchIn 0.4s forwards; }
 @keyframes glitchIn {
   0%  { transform:scale(2.5) skewX(8deg); opacity:0; filter:blur(14px) hue-rotate(180deg); }
   55% { transform:scale(0.97); opacity:1; filter:blur(1px); }
   80% { transform:scale(1.03); }
   100%{ transform:scale(1); filter:blur(0); }
 }
-#reveal-label {
-  color:#8b0000; font-size:0.7rem; letter-spacing:8px;
-  margin-top:18px; text-shadow:0 0 20px #ff0000; animation:flick 2s infinite;
-}
+#reveal-item-name { color:#8b0000; font-size:0.75rem; letter-spacing:8px; margin-top:18px; text-shadow:0 0 20px #ff0000; animation:flick 2s infinite; }
+#reveal-model-hint { color:#222; font-size:0.5rem; letter-spacing:4px; margin-top:8px; }
 #close-btn {
   margin-top:22px; padding:9px 34px; background:transparent;
-  border:1px solid #330000; color:#550000;
-  font-size:0.7rem; letter-spacing:5px; cursor:pointer;
-  font-family:'Courier New',monospace; transition:all 0.3s;
+  border:1px solid #330000; color:#550000; font-size:0.7rem; letter-spacing:5px;
+  cursor:pointer; font-family:'Courier New',monospace; transition:all 0.3s;
 }
 #close-btn:hover { border-color:#cc0000; color:#cc0000; }
 
-/* end */
-#end-screen {
-  position:fixed; inset:0; background:#000;
-  display:none; flex-direction:column; align-items:center; justify-content:center; z-index:200;
+/* ── BLACKOUT ── */
+#blackout {
+  position:fixed; inset:0; background:#000; opacity:0;
+  pointer-events:none; z-index:60; transition:opacity 0.8s;
 }
-#end-screen.show { display:flex; }
-#end-title { color:#8b0000; font-size:2rem; letter-spacing:12px; text-shadow:0 0 40px #ff0000; animation:flick 1.5s infinite; margin-bottom:14px; }
-#end-sub { color:#222; font-size:0.7rem; letter-spacing:5px; margin-bottom:44px; }
+#blackout.fade { opacity:1; }
+
+/* ── NEW ROUND ── */
+#new-round-msg {
+  position:fixed; inset:0; background:#000;
+  display:none; flex-direction:column; align-items:center; justify-content:center; z-index:80;
+}
+#new-round-msg.show { display:flex; }
+#nr-title { color:#330000; font-size:1.2rem; letter-spacing:10px; animation:flick 2s infinite; margin-bottom:10px; }
+#nr-sub { color:#1a1a1a; font-size:0.6rem; letter-spacing:5px; }
+
+/* ── HINT BAR ── */
+#hint-bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); color:#1a1a1a; font-size:0.52rem; letter-spacing:3px; pointer-events:none; z-index:10; }
+
+#flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
+
+/* ── MOBILE JOY ── */
+#joy-zone { position:fixed; bottom:50px; left:30px; z-index:15; display:none; }
+#joy-base { width:90px; height:90px; border-radius:50%; border:1px solid #222; background:rgba(0,0,0,0.5); position:relative; touch-action:none; }
+#joy-thumb { width:34px; height:34px; border-radius:50%; background:rgba(100,0,0,0.4); border:1px solid #440000; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
+
+/* ── LOADER ── */
+#loader { position:fixed; inset:0; background:#000; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; }
+#loader-track { width:240px; height:2px; background:#111; margin:18px 0 10px; }
+#loader-fill { height:100%; width:0%; background:#550000; transition:width 0.15s; }
+#loader-msg { color:#222; font-size:0.58rem; letter-spacing:4px; }
+#loader-skip { margin-top:28px; padding:8px 28px; background:transparent; border:1px solid #181818; color:#181818; font-size:0.55rem; letter-spacing:4px; cursor:pointer; font-family:'Courier New',monospace; display:none; }
+#loader-skip:hover { border-color:#440000; color:#440000; }
 
 @keyframes flick {
   0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.2} 93%{opacity:1} 95%{opacity:0.6} 96%{opacity:1}
 }
-
-/* mobile joystick */
-#joy-zone { position:fixed; bottom:50px; left:30px; z-index:15; display:none; }
-#joy-base { width:90px; height:90px; border-radius:50%; border:1px solid #222; background:rgba(0,0,0,0.5); position:relative; touch-action:none; }
-#joy-thumb { width:34px; height:34px; border-radius:50%; background:rgba(100,0,0,0.4); border:1px solid #440000; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
 </style>
 </head>
 <body>
 
-<!-- LOADER -->
 <div id="loader">
-  <div id="loader-label">載 入 中</div>
+  <div style="color:#330000;font-size:0.65rem;letter-spacing:6px">載 入 中</div>
   <div id="loader-track"><div id="loader-fill"></div></div>
-  <div id="loader-msg">連線中...</div>
-  <button id="loader-skip" onclick="skipLoader()">略 過 ( 使 用 預 設 房 間 )</button>
+  <div id="loader-msg">準備中...</div>
+  <button id="loader-skip" onclick="skipLoader()">略 過</button>
 </div>
 
-<!-- START -->
 <div id="start-screen">
   <div id="start-title">恐 怖 房 間</div>
-  <div id="start-sub">找 到 三 個 隱 藏 的 開 關</div>
+  <div id="start-sub">找 到 發 光 的 開 關</div>
   <button class="btn" onclick="startGame()">進 入 房 間</button>
   <button class="btn dim" id="vr-btn">VR 偵 測 中...</button>
 </div>
 
-<!-- HUD -->
 <div id="hud">
   <div style="animation:flick 5s infinite">── 恐 怖 房 間 ──</div>
-  <div id="hud-count">開 關 &nbsp;<span id="found-count">0</span>&nbsp;/&nbsp;3</div>
+  <div id="hud-right">
+    <div id="hud-count">開 關 &nbsp;<span id="found-count">0</span>&nbsp;/&nbsp;3</div>
+    <div id="round-label">第 <span id="round-num">1</span> 輪</div>
+  </div>
 </div>
 
 <div id="crosshair"><div id="ch-h"></div><div id="ch-v"></div></div>
 <div id="aim-hint">[ 點 擊 ] 啟 動</div>
 
-<!-- FLASHLIGHT -->
-<div id="fl-ui">
-  <div id="fl-btn" onclick="if(gameActive)toggleFlashlight()">
-    <svg id="fl-icon" width="22" height="28" viewBox="0 0 22 28">
-      <polygon points="6,0 16,0 20,16 2,16" fill="#ffe0a0" stroke="#cc9940" stroke-width="0.8"/>
-      <rect x="8" y="16" width="6" height="10" rx="1.5" fill="#887755" stroke="#aa8844" stroke-width="0.8"/>
-      <ellipse cx="11" cy="3" rx="5" ry="3" fill="#ffe8c055"/>
-    </svg>
-  </div>
-  <div id="fl-key">F 手 電 筒</div>
+<div id="countdown-wrap">
+  <div id="countdown-num">10</div>
+  <div id="countdown-label">燈 即 將 熄 滅</div>
 </div>
 
-<div id="hint-bar">WASD 走動 &nbsp;|&nbsp; 滑鼠 轉向 &nbsp;|&nbsp; F 手電筒 &nbsp;|&nbsp; 靠近後點擊開關</div>
+<div id="hint-bar">WASD 走 動 &nbsp;|&nbsp; 滑 鼠 轉 向 &nbsp;|&nbsp; 靠 近 發 光 方 塊 點 擊</div>
 <div id="flash"></div>
 
-<!-- REVEAL -->
+<!-- REVEAL OVERLAY -->
 <div id="reveal-screen">
-  <div id="reveal-wrap"><canvas id="reveal-canvas" width="440" height="330"></canvas></div>
-  <div id="reveal-label"></div>
+  <div id="reveal-wrap">
+    <canvas id="reveal-canvas" width="420" height="340"></canvas>
+  </div>
+  <div id="reveal-item-name"></div>
+  <div id="reveal-model-hint"></div>
   <button id="close-btn" onclick="closeReveal()">關 閉</button>
 </div>
 
-<!-- END -->
-<div id="end-screen">
-  <div id="end-title">你 找 到 了 它 們</div>
-  <div id="end-sub">牠 們 也 找 到 了 你</div>
-  <button class="btn" onclick="restartGame()">再 試 一 次</button>
+<!-- BLACKOUT -->
+<div id="blackout"></div>
+
+<!-- NEW ROUND MSG -->
+<div id="new-round-msg">
+  <div id="nr-title">燈 熄 了</div>
+  <div id="nr-sub">下 一 輪 開 始...</div>
 </div>
 
 <!-- MOBILE -->
@@ -206,299 +180,456 @@ canvas { display:block; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
-// ══════════════════════════════════════════════════════════
-//  GITHUB RAW URLs
-// ══════════════════════════════════════════════════════════
-const ROOM_URL  = 'https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
-const POWER_URL = 'https://raw.githubusercontent.com/gp01002/room01/main/power.glb';
-
-// ══════════════════════════════════════════════════════════
-//  CREATURE CANVAS DRAWS
-// ══════════════════════════════════════════════════════════
-function drawMickey(ctx,w,h){
-  ctx.fillStyle='#030101';ctx.fillRect(0,0,w,h);
-  const cx=w/2,cy=h*0.52,R=h*0.28;
-  for(const[ex,ey]of[[cx-R*0.72,cy-R*0.82],[cx+R*0.72,cy-R*0.82]]){
-    ctx.beginPath();ctx.arc(ex,ey,R*0.55,0,Math.PI*2);ctx.fillStyle='#0a0a0a';ctx.fill();
-    ctx.strokeStyle='#181818';ctx.lineWidth=1;ctx.stroke();
-    ctx.beginPath();ctx.arc(ex,ey,R*0.3,0,Math.PI*2);ctx.fillStyle='#110505';ctx.fill();
-  }
-  const hg=ctx.createRadialGradient(cx,cy-R*.2,0,cx,cy,R);
-  hg.addColorStop(0,'#181818');hg.addColorStop(1,'#060606');
-  ctx.beginPath();ctx.ellipse(cx,cy,R,R*.95,0,0,Math.PI*2);ctx.fillStyle=hg;ctx.fill();
-  ctx.beginPath();ctx.ellipse(cx,cy+R*.08,R*.78,R*.72,0,0,Math.PI*2);ctx.fillStyle='#0e0e0e';ctx.fill();
-  for(const ex of[cx-R*.3,cx+R*.3]){
-    const ey=cy-R*.12;
-    ctx.beginPath();ctx.ellipse(ex,ey,R*.2,R*.23,0,0,Math.PI*2);ctx.fillStyle='#000';ctx.fill();
-    ctx.strokeStyle='#2a0000';ctx.lineWidth=1.5;ctx.stroke();
-    const rg=ctx.createRadialGradient(ex,ey,0,ex,ey,R*.14);
-    rg.addColorStop(0,'rgba(80,0,0,.5)');rg.addColorStop(1,'transparent');
-    ctx.beginPath();ctx.ellipse(ex,ey,R*.14,R*.16,0,0,Math.PI*2);ctx.fillStyle=rg;ctx.fill();
-    ctx.beginPath();ctx.moveTo(ex-2,ey+R*.23);ctx.bezierCurveTo(ex-4,ey+R*.4,ex-5,ey+R*.52,ex-4,ey+R*.6);
-    ctx.strokeStyle='rgba(80,0,0,.7)';ctx.lineWidth=2.5;ctx.stroke();
-  }
-  ctx.beginPath();ctx.ellipse(cx,cy+R*.22,R*.18,R*.12,0,0,Math.PI*2);ctx.fillStyle='#070707';ctx.fill();
-  ctx.beginPath();ctx.moveTo(cx-R*.42,cy+R*.42);ctx.bezierCurveTo(cx-R*.1,cy+R*.72,cx+R*.1,cy+R*.72,cx+R*.42,cy+R*.42);
-  ctx.strokeStyle='#2a0000';ctx.lineWidth=3;ctx.stroke();
-  ctx.fillStyle='#141414';for(let i=0;i<5;i++)ctx.fillRect(cx-R*.3+i*R*.15,cy+R*.45,R*.12,R*.1);
-  for(let i=0;i<3000;i++){ctx.fillStyle=`rgba(255,255,255,${Math.random()*.04})`;ctx.fillRect(Math.random()*w,Math.random()*h,1,1);}
-}
-
-function drawEyeCorner(ctx,w,h){
-  ctx.fillStyle='#0f0805';ctx.fillRect(0,0,w,h);
-  const cx=w/2,cy=h/2;
-  for(let y=0;y<h;y+=22){ctx.strokeStyle='#1a0e08';ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(0,y+Math.sin(y)*3);ctx.lineTo(w,y+Math.sin(y+1)*3);ctx.stroke();}
-  ctx.beginPath();ctx.moveTo(cx-w*.38,cy-h*.28);ctx.bezierCurveTo(cx-w*.1,cy-h*.36,cx+w*.12,cy-h*.34,cx+w*.38,cy-h*.26);
-  ctx.strokeStyle='#080504';ctx.lineWidth=12;ctx.lineCap='round';ctx.stroke();
-  ctx.save();
-  ctx.beginPath();ctx.moveTo(cx-w*.42,cy);ctx.bezierCurveTo(cx-w*.1,cy-h*.3,cx+w*.1,cy-h*.3,cx+w*.42,cy);
-  ctx.bezierCurveTo(cx+w*.1,cy+h*.3,cx-w*.1,cy+h*.3,cx-w*.42,cy);ctx.closePath();ctx.clip();
-  const eg=ctx.createRadialGradient(cx,cy,0,cx,cy,w*.4);eg.addColorStop(0,'#e8d4c0');eg.addColorStop(1,'#c4906a');
-  ctx.fillStyle=eg;ctx.fill();
-  ctx.strokeStyle='rgba(160,0,0,.35)';ctx.lineWidth=1.2;
-  for(const[x1,y1,x2,y2]of[[-0.38,-0.05,-0.22,0.03],[-0.35,0.1,-0.18,-0.04],[0.3,-0.08,0.18,0.05]]){
-    ctx.beginPath();ctx.moveTo(cx+x1*w,cy+y1*h);ctx.lineTo(cx+x2*w,cy+y2*h);ctx.stroke();
-  }
-  const ig=ctx.createRadialGradient(cx-5,cy-5,0,cx,cy,w*.14);
-  ig.addColorStop(0,'#2a1500');ig.addColorStop(.6,'#0d0600');ig.addColorStop(1,'#000');
-  ctx.beginPath();ctx.arc(cx,cy,w*.15,0,Math.PI*2);ctx.fillStyle=ig;ctx.fill();
-  ctx.beginPath();ctx.arc(cx,cy,w*.1,0,Math.PI*2);ctx.fillStyle='#000';ctx.fill();
-  ctx.beginPath();ctx.ellipse(cx-w*.04,cy-h*.06,w*.025,h*.02,-0.3,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.25)';ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle='#050202';ctx.lineWidth=2;ctx.lineCap='round';
-  for(const a of[-0.7,-0.4,-0.1,0.2,0.5,0.8]){
-    const lx=cx+Math.cos(a+Math.PI)*w*.42,ly=cy+Math.sin(a+Math.PI)*h*.15;
-    ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx+Math.cos(a+Math.PI-.2)*18,ly+Math.sin(a+Math.PI-.2)*22);ctx.stroke();
-  }
-  const tcx=cx-w*.38,tcy=cy;
-  ctx.beginPath();ctx.ellipse(tcx,tcy,18,12,0,0,Math.PI*2);ctx.fillStyle='#c09070';ctx.fill();
-  ctx.beginPath();ctx.ellipse(tcx,tcy,13,8,0,0,Math.PI*2);ctx.fillStyle='#0a0a0a';ctx.fill();
-  ctx.strokeStyle='#0d0505';ctx.lineWidth=1.5;ctx.lineCap='round';
-  for(const[dx,dy]of[[-22,-14],[-28,0],[-22,14],[4,-18],[4,18],[10,-8],[10,8]]){
-    ctx.beginPath();ctx.moveTo(tcx,tcy);ctx.lineTo(tcx+dx,tcy+dy);ctx.stroke();
-  }
-  ctx.beginPath();ctx.arc(tcx,tcy-1,5,0,Math.PI*2);ctx.fillStyle='#fffde7';ctx.fill();
-  ctx.beginPath();ctx.arc(tcx,tcy-1,3,0,Math.PI*2);ctx.fillStyle='#1a0000';ctx.fill();
-  ctx.beginPath();ctx.arc(tcx-1,tcy-2,1,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.9)';ctx.fill();
-}
-
-function drawDoorEyes(ctx,w,h){
-  ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
-  const dw=w*.38,gap=w*.045;
-  ctx.fillStyle='#0c0702';ctx.fillRect(0,0,dw,h);
-  ctx.strokeStyle='#2a1a0a';ctx.lineWidth=2;ctx.strokeRect(0,0,dw,h);
-  for(const x of[dw*.24,dw*.52,dw*.78]){ctx.strokeStyle='#0f0a03';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+2,h);ctx.stroke();}
-  ctx.strokeStyle='#1a1005';ctx.lineWidth=1;ctx.strokeRect(dw*.07,h*.08,dw*.86,h*.35);ctx.strokeRect(dw*.07,h*.57,dw*.86,h*.35);
-  ctx.fillStyle='#000';ctx.fillRect(dw,0,gap,h);
-  ctx.strokeStyle='#2a1a0a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(dw,0);ctx.lineTo(dw,h);ctx.stroke();
-  ctx.fillStyle='#040202';ctx.fillRect(dw+gap,0,w-(dw+gap),h);
-  for(let i=0;i<3;i++){
-    const ey=[h*.22,h*.52,h*.78][i],er=[14,11,9][i],ex=dw+gap/2-2;
-    const fg=ctx.createRadialGradient(ex+w*.12,ey,0,ex+w*.12,ey,w*.18);
-    fg.addColorStop(0,'rgba(10,5,2,.9)');fg.addColorStop(1,'transparent');
-    ctx.fillStyle=fg;ctx.beginPath();ctx.ellipse(ex+w*.1,ey,w*.18,er*2.8,0,0,Math.PI*2);ctx.fill();
-    ctx.save();ctx.beginPath();ctx.rect(dw-er,0,gap+er*2,h);ctx.clip();
-    const eg=ctx.createRadialGradient(ex-2,ey-1,0,ex,ey,er);eg.addColorStop(0,'#fffde7');eg.addColorStop(1,'#dcc890');
-    ctx.beginPath();ctx.ellipse(ex,ey,er,er*.56,0,0,Math.PI*2);ctx.fillStyle=eg;ctx.fill();
-    const iig=ctx.createRadialGradient(ex-1,ey-1,0,ex,ey,er*.4);iig.addColorStop(0,'#1a0800');iig.addColorStop(1,'#000');
-    ctx.beginPath();ctx.arc(ex,ey,er*.4,0,Math.PI*2);ctx.fillStyle=iig;ctx.fill();
-    ctx.beginPath();ctx.arc(ex,ey,er*.22,0,Math.PI*2);ctx.fillStyle='#000';ctx.fill();
-    ctx.beginPath();ctx.arc(ex-er*.1,ey-er*.14,er*.1,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,.85)';ctx.fill();
-    ctx.restore();
-  }
-}
-
-const CREATURES=[
-  {label:'它 在 看 你',    draw:drawMickey},
-  {label:'眼 角 的 東 西', draw:drawEyeCorner},
-  {label:'門 縫 後 面',    draw:drawDoorEyes},
+// ══════════════════════════════════════════════════════════════════
+//  10 HORROR ITEMS  (canvas placeholder + model info)
+// ══════════════════════════════════════════════════════════════════
+const ITEMS = [
+  {
+    name: '古 老 電 話',
+    modelName: 'Old Rotary Telephone',
+    modelUrl: 'https://sketchfab.com/3d-models/rotary-phone-c00e98e8a99f4f5e92dd6d7ff3680a2e',
+    color: ['#1a0d00','#3a1800','#5a2800'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#0a0600'; ctx.fillRect(0,0,w,h);
+      // Body
+      ctx.fillStyle='#2a1200'; ctx.beginPath(); ctx.roundRect(w*.2,h*.3,w*.6,h*.35,20); ctx.fill();
+      ctx.strokeStyle='#4a2200'; ctx.lineWidth=2; ctx.stroke();
+      // Dial
+      ctx.beginPath(); ctx.arc(w*.5,h*.48,h*.12,0,Math.PI*2); ctx.fillStyle='#1a0a00'; ctx.fill();
+      ctx.strokeStyle='#3a1800'; ctx.lineWidth=1.5; ctx.stroke();
+      for(let i=0;i<12;i++){const a=i/12*Math.PI*2; ctx.beginPath(); ctx.arc(w*.5+Math.cos(a)*h*.09,h*.48+Math.sin(a)*h*.09,3,0,Math.PI*2); ctx.fillStyle='#553300'; ctx.fill();}
+      // Handset
+      ctx.strokeStyle='#3a1800'; ctx.lineWidth=8; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(w*.22,h*.28); ctx.bezierCurveTo(w*.3,h*.18,w*.7,h*.18,w*.78,h*.28); ctx.stroke();
+      // Red glow
+      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.4);
+      g.addColorStop(0,'rgba(100,20,0,0.15)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      // Label
+      ctx.fillStyle='#553300'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: old_telephone.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '破 碎 的 娃 娃',
+    modelName: 'Broken Porcelain Doll',
+    modelUrl: 'https://sketchfab.com/3d-models/creepy-doll-b5e2a63b7e6748f5a7c44dcf5eaef8d3',
+    color: ['#0d0d1a','#1a1a3a','#2a2a55'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#080810'; ctx.fillRect(0,0,w,h);
+      // Head
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.3,h*.15,h*.17,0,0,Math.PI*2);
+      ctx.fillStyle='#c8b090'; ctx.fill(); ctx.strokeStyle='#3a3060'; ctx.lineWidth=2; ctx.stroke();
+      // Crack on face
+      ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.beginPath();
+      ctx.moveTo(w*.48,h*.18); ctx.lineTo(w*.45,h*.28); ctx.lineTo(w*.5,h*.32); ctx.stroke();
+      // Eyes — one missing
+      ctx.beginPath(); ctx.arc(w*.44,h*.27,5,0,Math.PI*2); ctx.fillStyle='#1a0a2a'; ctx.fill();
+      ctx.beginPath(); ctx.arc(w*.56,h*.27,5,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); // empty socket
+      ctx.strokeStyle='#330022'; ctx.lineWidth=1; ctx.stroke();
+      // Body
+      ctx.fillStyle='#2a1a3a'; ctx.beginPath(); ctx.roundRect(w*.35,h*.46,w*.3,h*.28,8); ctx.fill();
+      ctx.strokeStyle='#4a3060'; ctx.lineWidth=1.5; ctx.stroke();
+      // Arms
+      ctx.strokeStyle='#c8b090'; ctx.lineWidth=6; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(w*.35,h*.5); ctx.lineTo(w*.22,h*.62); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w*.65,h*.5); ctx.lineTo(w*.78,h*.58); ctx.stroke(); // broken arm
+      // Glow
+      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.45);
+      g.addColorStop(0,'rgba(60,0,80,0.2)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#332244'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: broken_doll.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '音 樂 盒',
+    modelName: 'Antique Music Box',
+    modelUrl: 'https://sketchfab.com/3d-models/music-box-7d3a88bdd4454e2a9c6acbe3e19cc4ec',
+    color: ['#0d0800','#1a1000','#2a1a00'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#080600'; ctx.fillRect(0,0,w,h);
+      // Box body
+      const grad=ctx.createLinearGradient(w*.2,h*.4,w*.8,h*.75);
+      grad.addColorStop(0,'#3a2800'); grad.addColorStop(1,'#1a1200');
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.roundRect(w*.2,h*.42,w*.6,h*.3,8); ctx.fill();
+      ctx.strokeStyle='#6a4800'; ctx.lineWidth=2; ctx.stroke();
+      // Lid open
+      ctx.fillStyle='#2a1e00';
+      ctx.beginPath(); ctx.moveTo(w*.2,h*.42); ctx.lineTo(w*.5,h*.2); ctx.lineTo(w*.8,h*.42); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#5a3c00'; ctx.lineWidth=1.5; ctx.stroke();
+      // Ballerina silhouette
+      ctx.fillStyle='#8a6040';
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.3,6,8,0,0,Math.PI*2); ctx.fill(); // head
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.38); ctx.lineTo(w*.47,h*.5); ctx.lineTo(w*.53,h*.5); ctx.closePath(); ctx.fill();
+      // Gold inlay decorations
+      ctx.strokeStyle='#8a6200'; ctx.lineWidth=1;
+      for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(w*.24+i*w*.1,h*.44);ctx.lineTo(w*.24+i*w*.1,h*.7);ctx.stroke();}
+      // Warm glow
+      const g=ctx.createRadialGradient(w*.5,h*.4,0,w*.5,h*.4,w*.4);
+      g.addColorStop(0,'rgba(120,60,0,0.25)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#5a3c00'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: music_box.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '染 血 的 鑰 匙',
+    modelName: 'Blood-Stained Key',
+    modelUrl: 'https://sketchfab.com/3d-models/old-key-bloodstained-free-3d-model-df3d2f4dd8c34cd1b9fa81c6a0c2d6f8',
+    color: ['#1a0000','#2a0000','#3a0000'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#0a0000'; ctx.fillRect(0,0,w,h);
+      // Key bow (ring top)
+      ctx.beginPath(); ctx.arc(w*.5,h*.32,h*.12,0,Math.PI*2); ctx.strokeStyle='#8a7050'; ctx.lineWidth=10; ctx.stroke();
+      ctx.beginPath(); ctx.arc(w*.5,h*.32,h*.07,0,Math.PI*2); ctx.strokeStyle='#0a0000'; ctx.lineWidth=6; ctx.stroke();
+      // Shaft
+      ctx.strokeStyle='#9a8060'; ctx.lineWidth=8; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.44); ctx.lineTo(w*.5,h*.72); ctx.stroke();
+      // Teeth
+      ctx.lineWidth=5;
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.54); ctx.lineTo(w*.6,h*.54); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.62); ctx.lineTo(w*.65,h*.62); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.68); ctx.lineTo(w*.58,h*.68); ctx.stroke();
+      // Blood drips
+      ctx.fillStyle='rgba(150,0,0,0.8)';
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.58,4,8,0.2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(w*.55,h*.65,3,6,-0.1,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(w*.48,h*.72,2,5,0,0,Math.PI*2); ctx.fill();
+      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.35);
+      g.addColorStop(0,'rgba(80,0,0,0.3)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#3a1010'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: bloody_key.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '碎 裂 的 鏡 子',
+    modelName: 'Cracked Mirror',
+    modelUrl: 'https://sketchfab.com/3d-models/broken-mirror-dcf5c0e5e5864b7e9fe8a7af04e5c4a1',
+    color: ['#0a0a10','#10101a','#1a1a2a'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#06060c'; ctx.fillRect(0,0,w,h);
+      // Mirror frame
+      ctx.strokeStyle='#3a3a2a'; ctx.lineWidth=12; ctx.lineJoin='round';
+      ctx.strokeRect(w*.18,h*.12,w*.64,h*.68);
+      // Mirror surface - shattered
+      ctx.fillStyle='#0d0d14'; ctx.fillRect(w*.18,h*.12,w*.64,h*.68);
+      // Shatter lines from center
+      const cx=w*.5, cy=h*.45;
+      ctx.strokeStyle='rgba(180,180,220,0.35)'; ctx.lineWidth=1.5;
+      for(let i=0;i<12;i++){
+        const a=i/12*Math.PI*2;
+        const len=Math.random()*h*.25+h*.05;
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*len,cy+Math.sin(a)*len); ctx.stroke();
+      }
+      // Glass shard highlights
+      ctx.strokeStyle='rgba(200,200,255,0.2)'; ctx.lineWidth=0.5;
+      for(let i=0;i<8;i++){
+        ctx.beginPath(); ctx.moveTo(w*.2+Math.random()*w*.6,h*.14+Math.random()*h*.64);
+        ctx.lineTo(w*.2+Math.random()*w*.6,h*.14+Math.random()*h*.64); ctx.stroke();
+      }
+      // Dark reflection (silhouette of someone)
+      ctx.fillStyle='rgba(0,0,0,0.6)';
+      ctx.beginPath(); ctx.ellipse(cx,cy-h*.08,h*.06,h*.08,0,0,Math.PI*2); ctx.fill();
+      ctx.fillRect(cx-h*.04,cy,h*.08,h*.18);
+      // Blue glow
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,w*.35);
+      g.addColorStop(0,'rgba(30,30,80,0.4)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#2a2a44'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: cracked_mirror.glb ]',w*.5,h*.92);
+    }
+  },
+  {
+    name: '罐 中 的 眼 睛',
+    modelName: 'Eye in Jar',
+    modelUrl: 'https://sketchfab.com/3d-models/eye-in-jar-horror-prop-9e5b4d3a7c2f41e8b6a1d5e9f3c7a2b8',
+    color: ['#001a00','#002a00','#003a00'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#000d00'; ctx.fillRect(0,0,w,h);
+      // Jar body
+      const jg=ctx.createLinearGradient(w*.3,0,w*.7,0);
+      jg.addColorStop(0,'rgba(100,150,100,0.15)'); jg.addColorStop(0.5,'rgba(150,200,150,0.25)'); jg.addColorStop(1,'rgba(100,150,100,0.15)');
+      ctx.fillStyle=jg; ctx.beginPath(); ctx.roundRect(w*.28,h*.2,w*.44,h*.55,12); ctx.fill();
+      ctx.strokeStyle='rgba(100,150,100,0.4)'; ctx.lineWidth=2; ctx.stroke();
+      // Lid
+      ctx.fillStyle='#2a1800'; ctx.beginPath(); ctx.roundRect(w*.3,h*.16,w*.4,h*.07,4); ctx.fill();
+      ctx.strokeStyle='#4a3000'; ctx.lineWidth=1.5; ctx.stroke();
+      // Liquid
+      ctx.fillStyle='rgba(0,60,10,0.5)'; ctx.fillRect(w*.29,h*.55,w*.42,h*.19);
+      // THE EYE
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.43,h*.1,h*.12,0,0,Math.PI*2);
+      ctx.fillStyle='#fffde7'; ctx.fill();
+      ctx.strokeStyle='rgba(0,80,0,0.3)'; ctx.lineWidth=1; ctx.stroke();
+      // Iris
+      const ig=ctx.createRadialGradient(w*.5,h*.43,0,w*.5,h*.43,h*.07);
+      ig.addColorStop(0,'#000'); ig.addColorStop(0.3,'#004400'); ig.addColorStop(1,'#001a00');
+      ctx.beginPath(); ctx.arc(w*.5,h*.43,h*.07,0,Math.PI*2); ctx.fillStyle=ig; ctx.fill();
+      // Pupil
+      ctx.beginPath(); ctx.arc(w*.5,h*.43,h*.035,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+      // Shine
+      ctx.beginPath(); ctx.arc(w*.47,h*.4,4,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fill();
+      // Veins on eyeball
+      ctx.strokeStyle='rgba(0,100,0,0.4)'; ctx.lineWidth=1;
+      for(const [a,len] of [[0.5,0.07],[2.1,0.06],[3.8,0.08],[5.2,0.05]]){
+        ctx.beginPath(); ctx.moveTo(w*.5+Math.cos(a)*h*.07,h*.43+Math.sin(a)*h*.07);
+        ctx.lineTo(w*.5+Math.cos(a)*h*(0.07+len),h*.43+Math.sin(a)*h*(0.07+len)); ctx.stroke();
+      }
+      // Green glow
+      const g=ctx.createRadialGradient(w*.5,h*.43,0,w*.5,h*.43,w*.3);
+      g.addColorStop(0,'rgba(0,60,0,0.35)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#1a3a1a'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: eye_in_jar.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '融 化 的 蠟 燭',
+    modelName: 'Melting Candle',
+    modelUrl: 'https://sketchfab.com/3d-models/melting-candle-horror-9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d',
+    color: ['#1a1000','#2a1a00','#3a2200'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#0a0800'; ctx.fillRect(0,0,w,h);
+      // Wax drips around base
+      ctx.fillStyle='#c8a870';
+      for(const [x,r,ht] of [[w*.42,8,h*.14],[w*.36,6,h*.1],[w*.6,7,h*.12],[w*.64,5,h*.08]]){
+        ctx.beginPath(); ctx.ellipse(x,h*.72,r,ht,0,0,Math.PI*2); ctx.fill();
+      }
+      // Candle body
+      const wg=ctx.createLinearGradient(w*.4,0,w*.6,0);
+      wg.addColorStop(0,'#a88860'); wg.addColorStop(0.5,'#d4b080'); wg.addColorStop(1,'#a88860');
+      ctx.fillStyle=wg; ctx.beginPath(); ctx.roundRect(w*.4,h*.32,w*.2,h*.42,4); ctx.fill();
+      // Melted top — uneven
+      ctx.fillStyle='#d4b080';
+      ctx.beginPath(); ctx.moveTo(w*.4,h*.32); ctx.bezierCurveTo(w*.42,h*.28,w*.45,h*.3,w*.5,h*.28); ctx.bezierCurveTo(w*.55,h*.26,w*.58,h*.3,w*.6,h*.32); ctx.lineTo(w*.4,h*.32); ctx.fill();
+      // Wick
+      ctx.strokeStyle='#1a1000'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.28); ctx.lineTo(w*.51,h*.22); ctx.stroke();
+      // Flame
+      const fg=ctx.createRadialGradient(w*.51,h*.18,0,w*.51,h*.18,h*.07);
+      fg.addColorStop(0,'#ffffff'); fg.addColorStop(0.3,'#ffdd44'); fg.addColorStop(0.7,'#ff6600'); fg.addColorStop(1,'transparent');
+      ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(w*.51,h*.17,h*.025,h*.055,-0.1,0,Math.PI*2); ctx.fill();
+      // Warm glow
+      const g=ctx.createRadialGradient(w*.51,h*.17,0,w*.51,h*.17,w*.45);
+      g.addColorStop(0,'rgba(255,120,0,0.25)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#5a3c10'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: melting_candle.glb ]',w*.5,h*.9);
+    }
+  },
+  {
+    name: '撕 破 的 日 記',
+    modelName: 'Torn Diary / Old Journal',
+    modelUrl: 'https://sketchfab.com/3d-models/old-diary-book-torn-pages-2e4f6a8b1c3d5e7f9a2b4c6d8e0f1a3b',
+    color: ['#100a00','#1a1000','#2a1800'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#090600'; ctx.fillRect(0,0,w,h);
+      // Book cover
+      ctx.fillStyle='#2a1400'; ctx.beginPath(); ctx.roundRect(w*.2,h*.18,w*.55,h*.56,4); ctx.fill();
+      ctx.strokeStyle='#4a2800'; ctx.lineWidth=2; ctx.stroke();
+      // Spine
+      ctx.fillStyle='#1a0c00'; ctx.fillRect(w*.2,h*.18,w*.07,h*.56);
+      // Pages - torn and sticking out
+      for(let i=0;i<4;i++){
+        ctx.fillStyle=`rgba(220,200,170,${0.6+i*0.05})`;
+        ctx.save(); ctx.translate(w*.74,h*.28+i*h*.08); ctx.rotate((Math.random()-0.5)*0.15);
+        ctx.fillRect(0,0,w*.1,h*.12); ctx.restore();
+      }
+      // Visible page content
+      ctx.fillStyle='#c8b890'; ctx.beginPath(); ctx.roundRect(w*.28,h*.22,w*.44,h*.48,2); ctx.fill();
+      // Handwriting lines
+      ctx.strokeStyle='rgba(60,30,0,0.4)'; ctx.lineWidth=1;
+      for(let i=0;i<8;i++){ ctx.beginPath(); ctx.moveTo(w*.3,h*.28+i*h*.05); ctx.lineTo(w*.7,h*.27+i*h*.05); ctx.stroke(); }
+      // Stain
+      ctx.fillStyle='rgba(80,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(w*.55,h*.48,30,20,-0.3,0,Math.PI*2); ctx.fill();
+      // Strange symbols
+      ctx.fillStyle='rgba(40,0,0,0.7)'; ctx.font=`${h*.1}px serif`;
+      ctx.fillText('⛧',w*.44,h*.52);
+      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.3);
+      g.addColorStop(0,'rgba(50,20,0,0.2)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#3a2400'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: torn_diary.glb ]',w*.5,h*.88);
+    }
+  },
+  {
+    name: '停 止 的 時 鐘',
+    modelName: 'Broken Grandfather Clock',
+    modelUrl: 'https://sketchfab.com/3d-models/grandfather-clock-broken-antique-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d',
+    color: ['#0a0800','#181200','#241c00'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#080600'; ctx.fillRect(0,0,w,h);
+      // Clock case
+      ctx.fillStyle='#1e1400'; ctx.beginPath(); ctx.roundRect(w*.32,h*.1,w*.36,h*.75,6); ctx.fill();
+      ctx.strokeStyle='#3a2c00'; ctx.lineWidth=2; ctx.stroke();
+      // Clock face
+      ctx.beginPath(); ctx.arc(w*.5,h*.3,h*.13,0,Math.PI*2); ctx.fillStyle='#e8d8b0'; ctx.fill();
+      ctx.strokeStyle='#3a2c00'; ctx.lineWidth=3; ctx.stroke();
+      // Hour markers
+      ctx.fillStyle='#1e1400';
+      for(let i=0;i<12;i++){
+        const a=i/12*Math.PI*2-Math.PI/2;
+        const r=h*.1;
+        ctx.beginPath(); ctx.arc(w*.5+Math.cos(a)*r,h*.3+Math.sin(a)*r,2.5,0,Math.PI*2); ctx.fill();
+      }
+      // Hands — stopped at 3:33
+      ctx.strokeStyle='#1e1400'; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.3); ctx.lineTo(w*.5+Math.cos(-Math.PI/2+Math.PI/6)*h*.09,h*.3+Math.sin(-Math.PI/2+Math.PI/6)*h*.09); ctx.stroke(); // hour (3)
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.3); ctx.lineTo(w*.5+Math.cos(-Math.PI/2+Math.PI*2*0.55)*h*.11,h*.3+Math.sin(-Math.PI/2+Math.PI*2*0.55)*h*.11); ctx.stroke(); // minute (33min)
+      // Pendulum window
+      ctx.fillStyle='#100c00'; ctx.fillRect(w*.42,h*.5,w*.16,h*.22);
+      ctx.strokeStyle='#2a2000'; ctx.lineWidth=1; ctx.stroke();
+      // Pendulum bob
+      ctx.strokeStyle='#8a7040'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.5); ctx.lineTo(w*.5,h*.68); ctx.stroke();
+      ctx.beginPath(); ctx.arc(w*.5,h*.68,8,0,Math.PI*2); ctx.fillStyle='#8a7040'; ctx.fill();
+      const g=ctx.createRadialGradient(w*.5,h*.3,0,w*.5,h*.5,w*.35);
+      g.addColorStop(0,'rgba(60,40,0,0.2)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#3a2c00'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: old_clock.glb ]',w*.5,h*.92);
+    }
+  },
+  {
+    name: '無 名 的 骨 頭',
+    modelName: 'Human Skull / Bone',
+    modelUrl: 'https://sketchfab.com/3d-models/human-skull-free-77bed7ad10d9487e9aab1fecb77ee2c7',
+    color: ['#0a0a00','#14140a','#1e1e12'],
+    draw: (ctx,w,h) => {
+      ctx.fillStyle='#080808'; ctx.fillRect(0,0,w,h);
+      // Skull cranium
+      const sg=ctx.createRadialGradient(w*.5,h*.32,0,w*.5,h*.35,h*.2);
+      sg.addColorStop(0,'#e0d8c0'); sg.addColorStop(1,'#c0b8a0');
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.34,h*.15,h*.18,0,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
+      ctx.strokeStyle='#8a8070'; ctx.lineWidth=1.5; ctx.stroke();
+      // Cheekbones
+      ctx.beginPath(); ctx.ellipse(w*.5,h*.5,h*.12,h*.08,0,0,Math.PI*2); ctx.fillStyle='#d0c8b0'; ctx.fill();
+      // Eye sockets
+      for(const ex of [w*.43,w*.57]){
+        ctx.beginPath(); ctx.ellipse(ex,h*.38,h*.042,h*.048,0,0,Math.PI*2);
+        ctx.fillStyle='#000'; ctx.fill(); ctx.strokeStyle='#5a5040'; ctx.lineWidth=1; ctx.stroke();
+      }
+      // Nose cavity
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.46); ctx.lineTo(w*.47,h*.5); ctx.lineTo(w*.53,h*.5); ctx.closePath();
+      ctx.fillStyle='#0a0a08'; ctx.fill();
+      // Teeth
+      ctx.fillStyle='#e0d8b8'; ctx.strokeStyle='#8a8060'; ctx.lineWidth=0.5;
+      for(let i=0;i<6;i++){ ctx.beginPath(); ctx.roundRect(w*.38+i*w*.04,h*.52,w*.033,h*.07,2); ctx.fill(); ctx.stroke(); }
+      // Crack
+      ctx.strokeStyle='rgba(80,70,50,0.6)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(w*.5,h*.2); ctx.lineTo(w*.48,h*.3); ctx.lineTo(w*.52,h*.36); ctx.stroke();
+      // Eerie glow
+      const g=ctx.createRadialGradient(w*.5,h*.4,0,w*.5,h*.4,w*.35);
+      g.addColorStop(0,'rgba(60,60,0,0.25)'); g.addColorStop(1,'transparent');
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#3a3820'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
+      ctx.fillText('[ placeholder: human_skull.glb ]',w*.5,h*.9);
+    }
+  },
 ];
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  THREE.JS GLOBALS
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 let scene, camera, renderer, clock;
 let yaw=0, pitch=0, isLocked=false, gameActive=false;
-let switchGroups=[], foundSwitches=new Set();
-let revealOrder=[], revealIdx=0;
+let switchGroups=[], foundInRound=new Set();
+let round=1, revealIdx=0;
 let doorEyesMesh=null, doorEyesActive=false;
-let flickerLight=null, flashlight=null, flashlightOn=false;
+let ceilingLight=null;
 let t=0;
 let skipRequested=false;
+let countdownTimer=null;
+let usedItemsThisRound=[];
 
-// Raycaster — far=6 units max interaction distance, RECURSIVE=true
-const RC = new THREE.Raycaster();
-RC.far = 6;
-
+const RC = new THREE.Raycaster(); RC.far=7;
 const keys={};
-document.addEventListener('keydown',e=>{
-  keys[e.code]=true;
-  if(gameActive && e.code==='KeyF') toggleFlashlight();
-});
+document.addEventListener('keydown',e=>{ keys[e.code]=true; });
 document.addEventListener('keyup',e=>{ keys[e.code]=false; });
-
 const joy={x:0,y:0};
 
-// ══════════════════════════════════════════════════════════
-//  LOADER UI HELPERS
-// ══════════════════════════════════════════════════════════
-function showLoader(msg){
-  document.getElementById('loader').style.display='flex';
-  document.getElementById('loader-msg').textContent=msg;
-  document.getElementById('loader-fill').style.width='0%';
-}
-function loaderPct(pct,msg){
-  document.getElementById('loader-fill').style.width=pct+'%';
-  if(msg) document.getElementById('loader-msg').textContent=msg;
-}
-function hideLoader(){
-  document.getElementById('loader').style.display='none';
-}
-function showSkipBtn(){
-  document.getElementById('loader-skip').style.display='block';
-}
-function skipLoader(){
-  skipRequested=true;
-}
+// ══════════════════════════════════════════════════════════════════
+//  LOADER HELPERS
+// ══════════════════════════════════════════════════════════════════
+function showLoader(msg){ document.getElementById('loader').style.display='flex'; document.getElementById('loader-msg').textContent=msg; }
+function loaderPct(p,m){ document.getElementById('loader-fill').style.width=p+'%'; if(m) document.getElementById('loader-msg').textContent=m; }
+function hideLoader(){ document.getElementById('loader').style.display='none'; }
+function skipLoader(){ skipRequested=true; }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  INIT
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function initThree(){
-  scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x000000, 0.065);
-
-  camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 60);
-  camera.position.set(0, 0, 4);
-  camera.rotation.order='YXZ';
-
-  renderer = new THREE.WebGLRenderer({antialias:true});
+  scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x000000,0.06);
+  camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,0.05,60);
+  camera.position.set(0,0,4); camera.rotation.order='YXZ';
+  renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(innerWidth,innerHeight);
   renderer.shadowMap.enabled=true;
-  document.body.insertBefore(renderer.domElement, document.body.firstChild);
-
-  clock = new THREE.Clock();
-
-  window.addEventListener('resize',()=>{
-    camera.aspect=innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth,innerHeight);
-  });
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('click', onClick);
-  document.addEventListener('pointerlockchange',()=>{
-    isLocked = document.pointerLockElement === renderer.domElement;
-  });
+  document.body.insertBefore(renderer.domElement,document.body.firstChild);
+  clock=new THREE.Clock();
+  window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+  document.addEventListener('mousemove',onMouseMove);
+  document.addEventListener('click',onClick);
+  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; });
   setupTouch();
 
-  // Load room then switches then start
-  loadAll().then(()=>{
+  loadRoomGLB().then(()=>{
+    buildSwitches();
     buildAtmosphere();
     checkVR();
     renderer.setAnimationLoop(render);
     hideLoader();
-  }).catch(err=>{
-    console.error('Load error:', err);
-    hideLoader();
   });
 }
 
-// ══════════════════════════════════════════════════════════
-//  LOAD ALL GLB
-// ══════════════════════════════════════════════════════════
-function loadAll(){
-  // Show skip button after 5 seconds in case download stalls
-  const skipTimer = setTimeout(showSkipBtn, 2000);
+// ══════════════════════════════════════════════════════════════════
+//  GLB LOADER
+// ══════════════════════════════════════════════════════════════════
+const ROOM_URL='https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
 
-  return loadGLB(ROOM_URL, 'room.glb')
-    .then(gltf=>{
-      if(gltf) placeRoom(gltf);
-      else buildProceduralRoom();
-    })
-    .then(()=> loadGLB(POWER_URL, 'power.glb'))
-    .then(gltf=>{
-      clearTimeout(skipTimer);
-      placeSwitches(gltf); // works with null → fallback
-    });
-}
-
-// Generic GLB loader — always resolves, never hangs forever
-// Hard timeout: 8s | No-response timeout: 3s
-function loadGLB(url, label){
+function loadRoomGLB(){
   return new Promise(resolve=>{
-    if(typeof THREE.GLTFLoader==='undefined'){ resolve(null); return; }
-    showLoader(label+' 載入中...');
-    let done=false, lastProgress=Date.now();
-
-    function finish(gltf, msg){
-      if(done) return; done=true;
-      clearInterval(pollId); clearTimeout(hardTid); clearTimeout(noRespTid);
-      loaderPct(100, msg); resolve(gltf);
-    }
-
-    // 8-second hard cap — no matter what
-    const hardTid = setTimeout(()=>finish(null, label+' 超時，使用預設'), 8000);
-    // 3-second no-response cap — if zero progress events received
-    const noRespTid = setTimeout(()=>{ if(Date.now()-lastProgress>2800) finish(null, label+' 無回應，使用預設'); }, 3000);
-    // User skip button poll
-    const pollId = setInterval(()=>{ if(skipRequested) finish(null, label+' 略過'); }, 200);
-
-    new THREE.GLTFLoader().load(url,
-      gltf => finish(gltf, label+' ✓'),
-      p => { lastProgress=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100), label+' '+Math.round(p.loaded/p.total*100)+'%'); },
-      err => { finish(null, label+' 失敗，使用預設'); console.warn(label, err.message||err); }
+    if(typeof THREE.GLTFLoader==='undefined'){ buildProceduralRoom(); resolve(); return; }
+    showLoader('room.glb 載入中...');
+    setTimeout(()=>document.getElementById('loader-skip').style.display='block',2000);
+    let done=false, lastProg=Date.now();
+    const hardTid=setTimeout(()=>fin(null,'超時，使用預設房間'),8000);
+    const noRespTid=setTimeout(()=>{ if(Date.now()-lastProg>2800)fin(null,'無回應，使用預設'); },3000);
+    const pollId=setInterval(()=>{ if(skipRequested)fin(null,'略過'); },200);
+    function fin(g,msg){ if(done)return; done=true; clearTimeout(hardTid);clearTimeout(noRespTid);clearInterval(pollId); loaderPct(100,msg); if(g)placeRoom(g); else buildProceduralRoom(); resolve(); }
+    new THREE.GLTFLoader().load(ROOM_URL,
+      g=>fin(g,'room.glb ✓'),
+      p=>{ lastProg=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100),'room.glb '+Math.round(p.loaded/p.total*100)+'%'); },
+      e=>fin(null,'room.glb 失敗，使用預設')
     );
   });
 }
 
-// ══════════════════════════════════════════════════════════
-//  PLACE ROOM GLB
-// ══════════════════════════════════════════════════════════
 function placeRoom(gltf){
-  const m = gltf.scene;
-  const box = new THREE.Box3().setFromObject(m);
-  const size = box.getSize(new THREE.Vector3());
-  const s = 14 / Math.max(size.x, size.y, size.z);
-  m.scale.setScalar(s);
-  box.setFromObject(m);
-  const center = box.getCenter(new THREE.Vector3());
-  m.position.set(-center.x, -box.min.y - 2.5, -center.z);
-  m.traverse(ch=>{
-    if(ch.isMesh){
-      ch.receiveShadow=true; ch.castShadow=true;
-      const mats = Array.isArray(ch.material)?ch.material:[ch.material];
-      mats.forEach(mat=>{ if(mat.color) mat.color.multiplyScalar(0.38); mat.roughness=1; });
-    }
-  });
+  const m=gltf.scene;
+  const box=new THREE.Box3().setFromObject(m);
+  const s=14/Math.max(...box.getSize(new THREE.Vector3()).toArray());
+  m.scale.setScalar(s); box.setFromObject(m);
+  const c=box.getCenter(new THREE.Vector3());
+  m.position.set(-c.x,-box.min.y-2.5,-c.z);
+  m.traverse(ch=>{ if(ch.isMesh){ ch.receiveShadow=ch.castShadow=true; const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.4); mat.roughness=1; }); }});
   scene.add(m);
-  // Door eyes overlay at back wall area
-  buildDoor(new THREE.Vector3(2.5, -0.5, -6.9));
+  buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
 }
 
-// ══════════════════════════════════════════════════════════
-//  PROCEDURAL ROOM (fallback)
-// ══════════════════════════════════════════════════════════
-function makeTex(fn){
-  const c=document.createElement('canvas'); c.width=512; c.height=512;
-  fn(c.getContext('2d'));
-  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
-}
+// ══════════════════════════════════════════════════════════════════
+//  PROCEDURAL ROOM
+// ══════════════════════════════════════════════════════════════════
+function makeTex(fn){ const c=document.createElement('canvas'); c.width=512; c.height=512; fn(c.getContext('2d')); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; }
+
 function buildProceduralRoom(){
   const W=10,H=5,D=14;
-  const wt=makeTex(x=>{
-    x.fillStyle='#090808';x.fillRect(0,0,512,512);
-    for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#0b0909':'#0d0b0b';x.fillRect(0,y,512,40);}
-    x.strokeStyle='#111010';x.lineWidth=.5;
-    for(let y=0;y<512;y+=40) for(let i=0;i<512;i+=30) x.strokeRect(i+4,y+4,22,32);
-  }); wt.repeat.set(3,2);
-  const ft=makeTex(x=>{
-    x.fillStyle='#080503';x.fillRect(0,0,512,512);
-    for(let y=0;y<512;y+=64) for(let i=0;i<512;i+=192){
-      x.fillStyle=`hsl(20,12%,${4+Math.random()*2}%)`;x.fillRect(i+1,y+1,190,62);
-      x.strokeStyle='#040301';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);
-    }
-  }); ft.repeat.set(4,5);
+  const wt=makeTex(x=>{ x.fillStyle='#090808';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#0b0909':'#0d0b0b';x.fillRect(0,y,512,40);} x.strokeStyle='#111010';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
+  const ft=makeTex(x=>{ x.fillStyle='#080503';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(20,12%,${4+Math.random()*2}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#040301';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
   const wm=new THREE.MeshLambertMaterial({map:wt,side:THREE.BackSide});
   const fm=new THREE.MeshLambertMaterial({map:ft});
   const cm=new THREE.MeshLambertMaterial({color:0x060606,side:THREE.BackSide});
@@ -513,397 +644,334 @@ function buildProceduralRoom(){
 
 function buildDoor(pos){
   const mat=new THREE.MeshLambertMaterial({color:0x0c0702});
-  const door=new THREE.Mesh(new THREE.BoxGeometry(1.4,3,.09),mat);
-  door.position.copy(pos); scene.add(door);
+  const door=new THREE.Mesh(new THREE.BoxGeometry(1.4,3,.09),mat); door.position.copy(pos); scene.add(door);
   const ec=document.createElement('canvas'); ec.width=256; ec.height=512;
-  drawDoorEyes(ec.getContext('2d'),256,512);
-  doorEyesMesh=new THREE.Mesh(
-    new THREE.PlaneGeometry(1.4,3),
-    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(ec),transparent:true,opacity:0})
-  );
+  // simple door eye canvas
+  const ctx=ec.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,256,512);
+  ctx.fillStyle='#0c0702'; ctx.fillRect(0,0,100,512);
+  doorEyesMesh=new THREE.Mesh(new THREE.PlaneGeometry(1.4,3),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(ec),transparent:true,opacity:0}));
   doorEyesMesh.position.set(pos.x,pos.y,pos.z+.07); scene.add(doorEyesMesh);
 }
 function buildPainting(x,y,z){
-  const pc=document.createElement('canvas'); pc.width=256; pc.height=200;
-  const ctx=pc.getContext('2d'); ctx.fillStyle='#050202'; ctx.fillRect(0,0,256,200);
-  ctx.fillStyle='#0d0808'; ctx.beginPath(); ctx.ellipse(128,100,60,70,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#000';
-  for(const ex of[108,148]){ ctx.beginPath(); ctx.ellipse(ex,85,18,22,0,0,Math.PI*2); ctx.fill(); }
-  const fr=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2),new THREE.MeshLambertMaterial({color:0x100808}));
-  fr.position.set(x,y,z); fr.rotation.y=Math.PI; scene.add(fr);
-  const pa=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.8),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(pc)}));
-  pa.position.set(x,y,z-.01); pa.rotation.y=Math.PI; scene.add(pa);
+  const fr=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2),new THREE.MeshLambertMaterial({color:0x100808})); fr.position.set(x,y,z); fr.rotation.y=Math.PI; scene.add(fr);
 }
 function buildCabinet(x,fy,z){
-  const m=new THREE.MeshLambertMaterial({color:0x0d0802});
-  const c=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,.6),m); c.position.set(x,fy+.8,z); scene.add(c);
+  const m=new THREE.MeshLambertMaterial({color:0x0d0802}); const c=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,.6),m); c.position.set(x,fy+.8,z); scene.add(c);
 }
 
-// ══════════════════════════════════════════════════════════
-//  PLACE SWITCHES  ← KEY FIX: tag each group with .isSwitch
-// ══════════════════════════════════════════════════════════
-const SWITCH_POS=[
-  {pos:new THREE.Vector3(-4.85, 0.4,-2.0), rot:new THREE.Euler(0, Math.PI/2, 0)},
-  {pos:new THREE.Vector3(-0.5,  0.8,-6.8), rot:new THREE.Euler(0, 0,         0)},
-  {pos:new THREE.Vector3( 4.85,-0.5, 1.5), rot:new THREE.Euler(0,-Math.PI/2, 0)},
+// ══════════════════════════════════════════════════════════════════
+//  GLOWING CUBE SWITCHES  ← 3 switches, each a coloured glowing cube
+// ══════════════════════════════════════════════════════════════════
+const SWITCH_DEFS=[
+  { pos:new THREE.Vector3(-4.8, 0.5,-2.0), rot:new THREE.Euler(0, Math.PI/2,0),  color:0x00aaff, glowColor:0x0044ff },
+  { pos:new THREE.Vector3(-0.5, 0.8,-6.7), rot:new THREE.Euler(0, 0,         0), color:0xff4400, glowColor:0xff0000 },
+  { pos:new THREE.Vector3( 4.8,-0.4, 1.5), rot:new THREE.Euler(0,-Math.PI/2,0),  color:0x00ff88, glowColor:0x00aa44 },
 ];
 
-function placeSwitches(gltf){
-  revealOrder=[0,1,2].sort(()=>Math.random()-0.5);
+function buildSwitches(){
+  SWITCH_DEFS.forEach((def,i)=>{
+    const g=new THREE.Group();
 
-  SWITCH_POS.forEach((def,i)=>{
-    const group = new THREE.Group();
-    group.userData = { isSwitch:true, id:i, activated:false };
+    // Glowing cube — MeshBasicMaterial so it appears lit regardless of lights
+    const cubeMat=new THREE.MeshBasicMaterial({ color:def.color });
+    const cube=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), cubeMat);
+    cube.name='cube';
+    g.add(cube);
 
-    if(gltf){
-      // Clone the loaded power.glb
-      const model = gltf.scene.clone(true);
-      const bbox = new THREE.Box3().setFromObject(model);
-      const sc = 0.5 / Math.max(...bbox.getSize(new THREE.Vector3()).toArray());
-      model.scale.setScalar(sc);
-      bbox.setFromObject(model);
-      const bc = bbox.getCenter(new THREE.Vector3());
-      model.position.sub(bc);
-      model.traverse(ch=>{
-        if(ch.isMesh){
-          ch.castShadow=true; ch.receiveShadow=true;
-          // mark mesh so we can find it later
-          ch.userData.switchIdx = i;
-          const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-          ms.forEach(mat=>{
-            mat=mat.clone(); // don't share material between clones
-            if(mat.color) mat.color.multiplyScalar(0.8);
-            mat.emissive = new THREE.Color(0x1a0800);
-            mat.emissiveIntensity = 0.7;
-          });
-        }
-      });
-      group.add(model);
-      group.userData.model = model;
-    } else {
-      // Fallback: simple lever geometry
-      const pm=new THREE.MeshLambertMaterial({color:0x1a1a1a,emissive:new THREE.Color(0x0d0808),emissiveIntensity:0.9});
-      group.add(new THREE.Mesh(new THREE.BoxGeometry(.2,.3,.04),pm));
-      const lm=new THREE.MeshLambertMaterial({color:0x666666});
-      const lever=new THREE.Mesh(new THREE.BoxGeometry(.07,.18,.05),lm);
-      lever.position.set(0,.05,.03); group.add(lever);
-      group.userData.model = lever;
-    }
+    // Pulsing point light
+    const light=new THREE.PointLight(def.glowColor, 1.2, 4, 2);
+    g.add(light);
+    g.userData.light=light;
 
-    // Large invisible hitbox — always present for reliable raycasting
-    const hitbox = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 1.0, 0.6),
-      new THREE.MeshBasicMaterial({visible:false, side:THREE.DoubleSide})
-    );
-    hitbox.userData.switchIdx = i;  // tag for identification
-    hitbox.name = 'switchHitbox';
-    group.add(hitbox);
+    // Wireframe outline
+    const wireMat=new THREE.MeshBasicMaterial({ color:0xffffff, wireframe:true, transparent:true, opacity:0.2 });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.32,0.32,0.32), wireMat));
 
-    // Dim red glow near switch so player can find it in dark
-    const glow = new THREE.PointLight(0x550000, 0.5, 2.5, 2);
-    group.add(glow);
-    group.userData.glow = glow;
+    // Large invisible hitbox
+    const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.0,1.0,0.8), new THREE.MeshBasicMaterial({visible:false}));
+    hitbox.name='hit';
+    g.add(hitbox);
 
-    group.position.copy(def.pos);
-    group.rotation.copy(def.rot);
-    scene.add(group);
-    switchGroups.push(group);
+    g.position.copy(def.pos);
+    g.rotation.copy(def.rot);
+    g.userData={ id:i, activated:false, cube };
+    scene.add(g);
+    switchGroups.push(g);
   });
 }
 
-// ══════════════════════════════════════════════════════════
-//  ATMOSPHERE
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  ATMOSPHERE  (no flashlight)
+// ══════════════════════════════════════════════════════════════════
 function buildAtmosphere(){
-  scene.add(new THREE.AmbientLight(0x0e0808, 0.5));
+  scene.add(new THREE.AmbientLight(0x111010, 0.9));
 
-  flickerLight = new THREE.PointLight(0x7a3818, 1.5, 12, 2);
-  flickerLight.position.set(0, 2.3, 0);
-  flickerLight.castShadow=true;
-  scene.add(flickerLight);
+  ceilingLight=new THREE.PointLight(0x8a4820,1.8,14,2);
+  ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
+  scene.add(ceilingLight);
 
-  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0x9a5828}));
-  bulb.position.copy(flickerLight.position); scene.add(bulb);
-
-  flashlight = new THREE.SpotLight(0xfff5e0, 0, 22, Math.PI*.13, .38, 1.1);
-  scene.add(flashlight); scene.add(flashlight.target);
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0xaa6030}));
+  bulb.position.copy(ceilingLight.position); scene.add(bulb);
 
   // Dust particles
-  const pa=new Float32Array(180*3);
-  for(let i=0;i<180;i++){pa[i*3]=(Math.random()-.5)*9;pa[i*3+1]=(Math.random()-.5)*4;pa[i*3+2]=(Math.random()-.5)*13;}
+  const pa=new Float32Array(160*3);
+  for(let i=0;i<160;i++){pa[i*3]=(Math.random()-.5)*9;pa[i*3+1]=(Math.random()-.5)*4;pa[i*3+2]=(Math.random()-.5)*13;}
   const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(pa,3));
-  scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x1a1a1a,size:.028,transparent:true,opacity:.6})));
+  scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x1a1a1a,size:.025,transparent:true,opacity:.6})));
 }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  RENDER LOOP
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function render(){
-  const dt = clock.getDelta(); t += dt;
+  const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
-  if(flickerLight) flickerLight.intensity = 1.3+Math.sin(t*.8)*.12+(Math.random()<.004?-.8:0);
+  if(ceilingLight) ceilingLight.intensity=1.6+Math.sin(t*.9)*.15+(Math.random()<.003?-1:0);
 
-  // Door eyes fade in
-  if(doorEyesActive && doorEyesMesh)
-    doorEyesMesh.material.opacity = Math.min(doorEyesMesh.material.opacity+dt*.6, 1);
+  // Cube pulse animation
+  switchGroups.forEach(sw=>{
+    if(!sw.userData.activated){
+      const sc=1+Math.sin(t*2.5+sw.userData.id)*0.06;
+      sw.userData.cube.scale.setScalar(sc);
+      sw.userData.light.intensity=1.0+Math.sin(t*2.5+sw.userData.id)*.5;
+    }
+  });
 
-  // Flashlight follows camera
-  if(flashlight){
-    const sh=flashlightOn?.013:0;
-    flashlight.position.set(
-      camera.position.x+Math.sin(t*3.1)*sh,
-      camera.position.y+Math.sin(t*2.7)*sh,
-      camera.position.z
-    );
-    const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation);
-    flashlight.target.position.copy(camera.position).addScaledVector(dir,6);
-    flashlight.target.updateMatrixWorld();
-  }
-
-  // WASD movement (only when pointer is locked)
-  if(gameActive && isLocked){
+  // WASD
+  if(gameActive&&isLocked){
     const spd=3.5*dt;
     const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
-    if(keys['KeyW']||keys['ArrowUp'])    camera.position.addScaledVector(fwd,spd);
-    if(keys['KeyS']||keys['ArrowDown'])  camera.position.addScaledVector(fwd,-spd);
-    if(keys['KeyA']||keys['ArrowLeft'])  camera.position.addScaledVector(right,-spd);
-    if(keys['KeyD']||keys['ArrowRight']) camera.position.addScaledVector(right,spd);
+    if(keys['KeyW']||keys['ArrowUp'])   camera.position.addScaledVector(fwd,spd);
+    if(keys['KeyS']||keys['ArrowDown']) camera.position.addScaledVector(fwd,-spd);
+    if(keys['KeyA']||keys['ArrowLeft']) camera.position.addScaledVector(right,-spd);
+    if(keys['KeyD']||keys['ArrowRight'])camera.position.addScaledVector(right,spd);
   }
-  // Mobile joystick movement (works without pointer lock)
-  if(gameActive && (joy.x||joy.y)){
+  // Joystick
+  if(gameActive&&(joy.x||joy.y)){
     const spd=3*dt;
     const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
     camera.position.addScaledVector(fwd,-joy.y*spd);
     camera.position.addScaledVector(right,joy.x*spd);
   }
-
-  // Clamp inside room bounds
   camera.position.x=Math.max(-4.4,Math.min(4.4,camera.position.x));
   camera.position.z=Math.max(-6.6,Math.min(6.6,camera.position.z));
   camera.position.y=0;
 
-  // Crosshair aim detection
+  // Crosshair aim
   if(gameActive){
-    const sw = getAimedSwitch();
-    const aimed = sw !== null;
-    document.getElementById('crosshair').className = aimed ? 'aimed' : '';
-    document.getElementById('aim-hint').className  = aimed ? 'show'  : '';
+    const sw=getAimedSwitch();
+    document.getElementById('crosshair').className=sw?'aimed':'';
+    document.getElementById('aim-hint').className=sw?'show':'';
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 
-// ══════════════════════════════════════════════════════════
-//  RAYCAST HELPER — finds switch group under crosshair
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  RAYCAST
+// ══════════════════════════════════════════════════════════════════
 function getAimedSwitch(){
-  RC.setFromCamera({x:0, y:0}, camera);
-  // Collect all hitboxes
-  const hitboxes = switchGroups.map(g => g.children.find(c=>c.name==='switchHitbox')).filter(Boolean);
+  RC.setFromCamera({x:0,y:0},camera);
+  const hitboxes=switchGroups.map(s=>s.children.find(c=>c.name==='hit')).filter(Boolean);
   if(!hitboxes.length) return null;
-  const hits = RC.intersectObjects(hitboxes, false);
+  const hits=RC.intersectObjects(hitboxes,false);
   if(!hits.length) return null;
-  // Walk up to find the switch group
-  const hitGroup = switchGroups.find(g => g.children.includes(hits[0].object));
-  if(!hitGroup || hitGroup.userData.activated) return null;
-  return hitGroup;
+  const g=switchGroups.find(sg=>sg.children.includes(hits[0].object));
+  return (g&&!g.userData.activated) ? g : null;
 }
 
-// ══════════════════════════════════════════════════════════
-//  INPUT HANDLERS
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════════════════════════════
 function onMouseMove(e){
-  if(!isLocked || !gameActive) return;
-  yaw   -= e.movementX * .0018;
-  pitch -= e.movementY * .0018;
-  pitch = Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, pitch));
+  if(!isLocked||!gameActive) return;
+  yaw-=e.movementX*.0018; pitch-=e.movementY*.0018;
+  pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));
   camera.rotation.y=yaw; camera.rotation.x=pitch;
 }
-
 function onClick(){
   if(!gameActive) return;
   if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
-  const sw = getAimedSwitch();
-  if(sw) activateSwitch(sw);
+  const sw=getAimedSwitch(); if(sw) activateSwitch(sw);
 }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  ACTIVATE SWITCH
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function activateSwitch(sw){
-  sw.userData.activated = true;
+  sw.userData.activated=true;
+  // Cube turns dark red when used
+  sw.userData.cube.material.color.setHex(0x440000);
+  sw.userData.light.color.setHex(0xcc0000);
+  sw.userData.light.intensity=0.4;
 
-  // Animate the model / lever
-  const model = sw.userData.model;
-  if(model){
-    model.rotation.x = .45;
-    model.traverse(ch=>{
-      if(ch.isMesh){
-        const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-        ms.forEach(m=>{ if(m.color)m.color.setHex(0xcc2200); m.emissive=new THREE.Color(0x660000); m.emissiveIntensity=2; });
-      }
-    });
-  }
-  // Change glow to red
-  if(sw.userData.glow){ sw.userData.glow.color.setHex(0xcc0000); sw.userData.glow.intensity=1.2; }
-
-  foundSwitches.add(sw.userData.id);
-  document.getElementById('found-count').textContent = foundSwitches.size;
+  foundInRound.add(sw.userData.id);
+  document.getElementById('found-count').textContent=foundInRound.size;
 
   flashScreen(); playSound();
-  const cIdx = revealOrder[revealIdx++];
-  setTimeout(()=>showReveal(cIdx), 320);
-  if(cIdx===2) setTimeout(()=>{ doorEyesActive=true; }, 700);
+
+  // Pick a random item — avoid repeating within the round if possible
+  let idx;
+  const available=ITEMS.map((_,i)=>i).filter(i=>!usedItemsThisRound.includes(i));
+  idx = available.length ? available[Math.floor(Math.random()*available.length)] : Math.floor(Math.random()*ITEMS.length);
+  usedItemsThisRound.push(idx);
+
+  setTimeout(()=>showReveal(idx), 280);
 }
 
-// ══════════════════════════════════════════════════════════
-//  REVEAL / END
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  REVEAL ITEM
+// ══════════════════════════════════════════════════════════════════
 function showReveal(idx){
   if(isLocked) document.exitPointerLock();
+  const item=ITEMS[idx];
   const c=document.getElementById('reveal-canvas');
-  CREATURES[idx].draw(c.getContext('2d'), c.width, c.height);
-  document.getElementById('reveal-label').textContent=CREATURES[idx].label;
+  item.draw(c.getContext('2d'), c.width, c.height);
+  document.getElementById('reveal-item-name').textContent=item.name;
+  document.getElementById('reveal-model-hint').textContent='↗ 3D 模 型 ：'+item.modelName;
   document.getElementById('reveal-screen').classList.add('show');
   playSound();
 }
+
 function closeReveal(){
   document.getElementById('reveal-screen').classList.remove('show');
-  if(foundSwitches.size===3){ setTimeout(showEnd,900); return; }
+
+  // Check if all 3 switches found
+  if(foundInRound.size>=3){
+    startCountdown();
+  } else {
+    renderer.domElement.requestPointerLock();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  10-SECOND COUNTDOWN → LIGHTS OUT → NEW ROUND
+// ══════════════════════════════════════════════════════════════════
+function startCountdown(){
+  let secs=10;
+  document.getElementById('countdown-wrap').style.display='block';
+  document.getElementById('countdown-num').textContent=secs;
+  renderer.domElement.requestPointerLock();
+
+  countdownTimer=setInterval(()=>{
+    secs--;
+    document.getElementById('countdown-num').textContent=secs;
+
+    // Flicker ceiling light more intensely near end
+    if(ceilingLight && secs<=3){
+      ceilingLight.intensity=Math.random()<0.5?0:0.5;
+    }
+
+    if(secs<=0){
+      clearInterval(countdownTimer);
+      lightsOut();
+    }
+  },1000);
+}
+
+function lightsOut(){
+  document.getElementById('countdown-wrap').style.display='none';
+  if(isLocked) document.exitPointerLock();
+
+  // Fade to black
+  const blackout=document.getElementById('blackout');
+  blackout.classList.add('fade');
+
+  if(ceilingLight) ceilingLight.intensity=0;
+
+  setTimeout(()=>{
+    document.getElementById('new-round-msg').classList.add('show');
+    setTimeout(()=>{
+      document.getElementById('new-round-msg').classList.remove('show');
+      newRound();
+      blackout.classList.remove('fade');
+    }, 2000);
+  }, 900);
+}
+
+function newRound(){
+  round++;
+  document.getElementById('round-num').textContent=round;
+  foundInRound.clear();
+  usedItemsThisRound=[];
+  document.getElementById('found-count').textContent='0';
+
+  // Reset switches — new glowing cubes
+  switchGroups.forEach((sw,i)=>{
+    sw.userData.activated=false;
+    sw.userData.cube.material.color.setHex(SWITCH_DEFS[i].color);
+    sw.userData.light.color.setHex(SWITCH_DEFS[i].glowColor);
+    sw.userData.light.intensity=1.2;
+    sw.userData.cube.scale.setScalar(1);
+  });
+
+  // Restore ceiling light
+  if(ceilingLight) ceilingLight.intensity=1.6;
+
   renderer.domElement.requestPointerLock();
 }
-function showEnd(){
-  document.getElementById('end-screen').classList.add('show');
-  playSound(); setTimeout(playSound,700);
-}
 
-// ══════════════════════════════════════════════════════════
-//  FLASHLIGHT
-// ══════════════════════════════════════════════════════════
-function toggleFlashlight(){
-  flashlightOn = !flashlightOn;
-  if(flashlight) flashlight.intensity = flashlightOn ? 3.2 : 0;
-  if(flickerLight) flickerLight.intensity = flashlightOn ? 0.6 : 1.3;
-  document.getElementById('fl-btn').className = flashlightOn ? 'on' : '';
-}
-
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  SOUND
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function playSound(){
   try{
     const ac=new(window.AudioContext||window.webkitAudioContext)();
-    [[55,.07,'sawtooth',1.8,35],[1200,.03,'sine',.28,400]].forEach(([f,g,tp,d,f2])=>{
+    [[60,.06,'sawtooth',1.5,30],[900,.025,'sine',.25,200]].forEach(([f,g,tp,d,f2])=>{
       const o=ac.createOscillator(),gn=ac.createGain();
       o.type=tp;o.frequency.setValueAtTime(f,ac.currentTime);o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+d);
       gn.gain.setValueAtTime(g,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
       o.connect(gn);gn.connect(ac.destination);o.start();o.stop(ac.currentTime+d);
     });
-    const buf=ac.createBuffer(1,ac.sampleRate*.2,ac.sampleRate);
-    const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*.25;
-    const n=ac.createBufferSource(),gn=ac.createGain();
-    gn.gain.setValueAtTime(.18,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.22);
-    n.buffer=buf;n.connect(gn);gn.connect(ac.destination);n.start();n.stop(ac.currentTime+.22);
   }catch(e){}
 }
-
 function flashScreen(){
   const f=document.getElementById('flash');
-  f.style.transition='none';f.style.opacity='.4';
+  f.style.transition='none';f.style.opacity='.35';
   requestAnimationFrame(()=>{f.style.transition='opacity .5s';f.style.opacity='0';});
 }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  VR
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function checkVR(){
   const btn=document.getElementById('vr-btn');
   if(!navigator.xr){btn.textContent='瀏 覽 器 不 支 援 VR';return;}
   navigator.xr.isSessionSupported('immersive-vr').then(ok=>{
-    if(ok){btn.textContent='進 入 VR 模 式';btn.classList.remove('dim');btn.onclick=enterVR;}
+    if(ok){btn.textContent='進 入 VR 模 式';btn.classList.remove('dim');btn.onclick=async()=>{renderer.xr.enabled=true;renderer.xr.setSession(await navigator.xr.requestSession('immersive-vr'));};} 
     else btn.textContent='此 裝 置 不 支 援 VR';
   });
 }
-async function enterVR(){
-  renderer.xr.enabled=true;
-  renderer.xr.setSession(await navigator.xr.requestSession('immersive-vr'));
-}
 
-// ══════════════════════════════════════════════════════════
-//  MOBILE TOUCH
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+//  MOBILE
+// ══════════════════════════════════════════════════════════════════
 function setupTouch(){
   if(!('ontouchstart' in window)) return;
   document.getElementById('joy-zone').style.display='block';
-
-  const base=document.getElementById('joy-base'), thumb=document.getElementById('joy-thumb');
+  const base=document.getElementById('joy-base'),thumb=document.getElementById('joy-thumb');
   const R=45; let jc={x:0,y:0};
-
   base.addEventListener('touchstart',e=>{e.preventDefault();const tk=e.touches[0];jc={x:tk.clientX,y:tk.clientY};},{passive:false});
-  base.addEventListener('touchmove',e=>{
-    e.preventDefault();const tk=e.touches[0];
-    let dx=tk.clientX-jc.x,dy=tk.clientY-jc.y;
-    const len=Math.sqrt(dx*dx+dy*dy);if(len>R){dx=dx/len*R;dy=dy/len*R;}
-    joy.x=dx/R;joy.y=dy/R;thumb.style.left=(45+dx)+'px';thumb.style.top=(45+dy)+'px';thumb.style.transform='none';
-  },{passive:false});
+  base.addEventListener('touchmove',e=>{e.preventDefault();const tk=e.touches[0];let dx=tk.clientX-jc.x,dy=tk.clientY-jc.y;const l=Math.sqrt(dx*dx+dy*dy);if(l>R){dx=dx/l*R;dy=dy/l*R;}joy.x=dx/R;joy.y=dy/R;thumb.style.left=(45+dx)+'px';thumb.style.top=(45+dy)+'px';thumb.style.transform='none';},{passive:false});
   base.addEventListener('touchend',e=>{e.preventDefault();joy.x=0;joy.y=0;thumb.style.left='50%';thumb.style.top='50%';thumb.style.transform='translate(-50%,-50%)';},{passive:false});
-
   let lt=null,ll={x:0,y:0};
   renderer.domElement.addEventListener('touchstart',e=>{for(const tk of e.changedTouches)if(tk.clientX>innerWidth/2&&!lt){lt=tk.identifier;ll={x:tk.clientX,y:tk.clientY};}});
-  renderer.domElement.addEventListener('touchmove',e=>{
-    for(const tk of e.changedTouches)if(tk.identifier===lt){
-      yaw-=(tk.clientX-ll.x)*.003;pitch-=(tk.clientY-ll.y)*.003;
-      pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));
-      camera.rotation.y=yaw;camera.rotation.x=pitch;ll={x:tk.clientX,y:tk.clientY};
-    }
-  });
-  renderer.domElement.addEventListener('touchend',e=>{
-    for(const tk of e.changedTouches){
-      if(tk.identifier===lt) lt=null;
-      // Tap on right side = interact
-      if(gameActive && tk.clientX>innerWidth/2){
-        const sw=getAimedSwitch(); if(sw) activateSwitch(sw);
-      }
-    }
-  });
-
-  document.getElementById('fl-btn').addEventListener('click',()=>{ if(gameActive) toggleFlashlight(); });
+  renderer.domElement.addEventListener('touchmove',e=>{for(const tk of e.changedTouches)if(tk.identifier===lt){yaw-=(tk.clientX-ll.x)*.003;pitch-=(tk.clientY-ll.y)*.003;pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));camera.rotation.y=yaw;camera.rotation.x=pitch;ll={x:tk.clientX,y:tk.clientY};}});
+  renderer.domElement.addEventListener('touchend',e=>{for(const tk of e.changedTouches){if(tk.identifier===lt)lt=null;if(gameActive&&tk.clientX>innerWidth/2){const sw=getAimedSwitch();if(sw)activateSwitch(sw);}}});
 }
 
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 //  GAME FLOW
-// ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 function startGame(){
   document.getElementById('start-screen').style.display='none';
-  document.getElementById('fl-ui').style.display='flex';
   gameActive=true;
-  toggleFlashlight(); // start with flashlight ON
   renderer.domElement.requestPointerLock();
 }
 
-function restartGame(){
-  foundSwitches.clear(); revealIdx=0;
-  revealOrder=[0,1,2].sort(()=>Math.random()-0.5);
-  document.getElementById('found-count').textContent='0';
-  document.getElementById('end-screen').classList.remove('show');
-  doorEyesActive=false;
-  if(doorEyesMesh) doorEyesMesh.material.opacity=0;
-  if(!flashlightOn) toggleFlashlight();
-  switchGroups.forEach(sw=>{
-    sw.userData.activated=false;
-    const model=sw.userData.model;
-    if(model){ model.rotation.x=0;
-      model.traverse(ch=>{if(ch.isMesh){const ms=Array.isArray(ch.material)?ch.material:[ch.material];ms.forEach(m=>{if(m.emissive)m.emissive.setHex(0x1a0800);m.emissiveIntensity=.7;});}});
-    }
-    if(sw.userData.glow){sw.userData.glow.color.setHex(0x550000);sw.userData.glow.intensity=.5;}
-  });
-  renderer.domElement.requestPointerLock();
-}
-
-// ══════════════════════════════════════════════════════════
 initThree();
 </script>
 </body>
