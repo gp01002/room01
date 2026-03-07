@@ -168,7 +168,7 @@ canvas { display:block; }
   </div>
   <div id="reveal-item-name"></div>
   <div id="reveal-model-hint"></div>
-  <button id="close-btn" onclick="closeReveal()">關 閉</button>
+  <button id="close-btn" onclick="closeReveal()">繼 續 探 索</button>
 </div>
 
 <!-- BLACKOUT -->
@@ -624,7 +624,7 @@ function placeRoom(gltf){
   m.scale.setScalar(s); box.setFromObject(m);
   const c=box.getCenter(new THREE.Vector3());
   m.position.set(-c.x,-box.min.y-2.5,-c.z);
-  m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.55); }); }});
+  m.traverse(ch=>{ if(ch.isMesh){ const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.color)mat.color.multiplyScalar(0.42); }); }});
   scene.add(m);
   buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
 }
@@ -712,9 +712,9 @@ function buildSwitches(){
 //  ATMOSPHERE  (no flashlight)
 // ══════════════════════════════════════════════════════════════════
 function buildAtmosphere(){
-  scene.add(new THREE.AmbientLight(0x2a2018, 3.5));
+  scene.add(new THREE.AmbientLight(0x2a2018, 2.45));
 
-  ceilingLight=new THREE.PointLight(0xcc7830,4.5,22,1.5);
+  ceilingLight=new THREE.PointLight(0xcc7830,3.15,22,1.5);
   ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
   scene.add(ceilingLight);
 
@@ -722,8 +722,8 @@ function buildAtmosphere(){
   bulb.position.copy(ceilingLight.position); scene.add(bulb);
 
   // Fill lights at corners so room isn't pitch black
-  const fill1=new THREE.PointLight(0x4a3015,2.5,18,1.5); fill1.position.set(-4,1.5,-5); scene.add(fill1);
-  const fill2=new THREE.PointLight(0x4a3015,2.5,18,1.5); fill2.position.set( 4,1.5, 4); scene.add(fill2);
+  const fill1=new THREE.PointLight(0x4a3015,1.75,18,1.5); fill1.position.set(-4,1.5,-5); scene.add(fill1);
+  const fill2=new THREE.PointLight(0x4a3015,1.75,18,1.5); fill2.position.set( 4,1.5, 4); scene.add(fill2);
 
   // Dust particles
   const pa=new Float32Array(160*3);
@@ -739,7 +739,7 @@ function render(){
   const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
-  if(ceilingLight) ceilingLight.intensity=4.0+Math.sin(t*.9)*.2+(Math.random()<.003?-0.5:0);
+  if(ceilingLight) ceilingLight.intensity=2.8+Math.sin(t*.9)*.15+(Math.random()<.003?-0.4:0);
 
   // Cube pulse animation
   switchGroups.forEach(sw=>{
@@ -855,10 +855,26 @@ function activateSwitch(sw){
 function showReveal(idx){
   if(isLocked) document.exitPointerLock();
   const item=ITEMS[idx];
-  const c=document.getElementById('reveal-canvas');
-  item.draw(c.getContext('2d'), c.width, c.height);
+  const cvs=document.getElementById('reveal-canvas');
+  item.draw(cvs.getContext('2d'), cvs.width, cvs.height);
   document.getElementById('reveal-item-name').textContent=item.name;
   document.getElementById('reveal-model-hint').textContent='↗ 3D 模 型 ：'+item.modelName;
+  // If this is the 3rd switch → button says 關燈
+  const isLast = foundInRound.size>=3;
+  const btn=document.getElementById('close-btn');
+  if(isLast){
+    btn.textContent='關 燈';
+    btn.style.borderColor='#880000';
+    btn.style.color='#aa0000';
+    btn.style.boxShadow='0 0 18px #44000066';
+    // Add scary subtitle
+    document.getElementById('reveal-model-hint').textContent='⚠ 關 燈 才 能 繼 續 ⚠';
+  } else {
+    btn.textContent='繼 續 探 索';
+    btn.style.borderColor='';
+    btn.style.color='';
+    btn.style.boxShadow='';
+  }
   document.getElementById('reveal-screen').classList.add('show');
   playSound();
 }
@@ -936,7 +952,7 @@ function newRound(){
   });
 
   // Restore ceiling light
-  if(ceilingLight) ceilingLight.intensity=4.0;
+  if(ceilingLight) ceilingLight.intensity=2.8;
 
   renderer.domElement.requestPointerLock();
 }
