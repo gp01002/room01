@@ -600,7 +600,7 @@ function initThree(){
   window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
   document.addEventListener('mousemove',onMouseMove);
   document.addEventListener('click',onClick);
-  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; });
+  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; if(isLocked&&gameActive)console.log('Pointer locked'); });
   setupTouch();
 
   loadRoomGLB()
@@ -786,8 +786,10 @@ function spawnSwitch(){
 
   g.position.copy(pos);
   g.userData={activated:false, visualMesh, light};
+  light.intensity=2.5;  // 確保亮度正確
   scene.add(g);
   switchGroup=g;
+  console.log('Switch spawned at',pos.x.toFixed(1),pos.y.toFixed(1),pos.z.toFixed(1));
 }
 
 // 在房間裡放一個物品實體（累積）
@@ -814,13 +816,14 @@ function spawnItemInRoom(itemIdx){
   g.add(plane);
 
   // 底座發光方塊（讓玩家注意到）
-  const baseMat=new THREE.MeshBasicMaterial({color:item.color[0]||0x330000});
+  const itemColor=parseInt((item.color[0]||'#330000').replace('#',''),16);
+  const baseMat=new THREE.MeshBasicMaterial({color:itemColor});
   const base=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.12,0.18),baseMat);
   base.position.y=-0.02;
   g.add(base);
 
   // 微弱點光源
-  const glow=new THREE.PointLight(item.color[0]||0x330000,0.8,3,2);
+  const glow=new THREE.PointLight(itemColor,0.8,3,2);
   glow.position.y=0.3; g.add(glow);
 
   // 近距離偵測用碰撞體
@@ -861,6 +864,7 @@ function buildAtmosphere(){
 //  RENDER LOOP
 // ══════════════════════════════════════════════════════════════════
 function render(){
+  try{
   const dt=clock.getDelta(); t+=dt;
 
   // Ceiling flicker
@@ -931,20 +935,11 @@ function render(){
     document.getElementById('crosshair').className=sw?'aimed':'';
     document.getElementById('aim-hint').className=sw?'show':'';
 
-    // Movement indicator arrows
-    const mi=document.getElementById('move-indicator');
-    const isMovingNow=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
-    if(mi){
-      mi.style.opacity=isLocked?'1':'0';
-      const hl='rgba(200,100,0,0.8)', lo='#333';
-      document.getElementById('mi-n').style.color=(keys['KeyW']||keys['ArrowUp'])?hl:lo;
-      document.getElementById('mi-s').style.color=(keys['KeyS']||keys['ArrowDown'])?hl:lo;
-      document.getElementById('mi-l').style.color=(keys['KeyA']||keys['ArrowLeft'])?hl:lo;
-      document.getElementById('mi-r').style.color=(keys['KeyD']||keys['ArrowRight'])?hl:lo;
-    }
+    // (movement indicator removed)
   }
 
   renderer.render(scene,camera);
+  }catch(err){ console.error('RENDER ERROR:',err); }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1081,6 +1076,7 @@ function setupTouch(){
 function startGame(){
   document.getElementById('start-screen').style.display='none';
   gameActive=true;
+  console.log('Game started, switchGroup=',!!switchGroup);
   renderer.domElement.requestPointerLock();
 }
 
