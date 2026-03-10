@@ -211,7 +211,7 @@ const ITEMS = [
   {
     name: '古 老 電 話',
     modelName: 'Old Rotary Telephone',
-    modelUrl: 'https://sketchfab.com/3d-models/rotary-phone-c00e98e8a99f4f5e92dd6d7ff3680a2e',
+    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_telephone.glb',
     color: ['#1a0d00','#3a1800','#5a2800'],
     draw: (ctx,w,h) => {
       ctx.fillStyle='#0a0600'; ctx.fillRect(0,0,w,h);
@@ -237,7 +237,7 @@ const ITEMS = [
   {
     name: '破 碎 的 娃 娃',
     modelName: 'Broken Porcelain Doll',
-    modelUrl: 'https://sketchfab.com/3d-models/creepy-doll-b5e2a63b7e6748f5a7c44dcf5eaef8d3',
+    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken_doll.glb',
     color: ['#0d0d1a','#1a1a3a','#2a2a55'],
     draw: (ctx,w,h) => {
       ctx.fillStyle='#080810'; ctx.fillRect(0,0,w,h);
@@ -794,7 +794,6 @@ function spawnSwitch(){
 
 // 在房間裡放一個物品實體（累積）
 function spawnItemInRoom(itemIdx){
-  // 找一個沒被用過的位置
   const usedPositions=spawnedItems.map(o=>o.posIdx);
   let posIdx;
   do { posIdx=Math.floor(Math.random()*ITEM_POSITIONS.length); }
@@ -802,38 +801,76 @@ function spawnItemInRoom(itemIdx){
 
   const pos=ITEM_POSITIONS[posIdx].clone();
   const item=ITEMS[itemIdx];
+  const itemColor=parseInt((item.color?item.color[0]||'#330000':'#330000').replace('#',''),16);
   const g=new THREE.Group();
+  g.position.copy(pos);
 
-  // 彩色平面顯示物品畫
-  const cvs=document.createElement('canvas'); cvs.width=256; cvs.height=256;
-  item.draw(cvs.getContext('2d'),256,256);
-  const tex=new THREE.CanvasTexture(cvs);
-  const plane=new THREE.Mesh(
-    new THREE.PlaneGeometry(0.9,0.9),
-    new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide,transparent:true})
-  );
-  plane.position.y=0.45; // 讓底部在地板上
-  g.add(plane);
-
-  // 底座發光方塊（讓玩家注意到）
-  const itemColor=parseInt((item.color[0]||'#330000').replace('#',''),16);
-  const baseMat=new THREE.MeshBasicMaterial({color:itemColor});
-  const base=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.12,0.18),baseMat);
-  base.position.y=-0.02;
-  g.add(base);
-
-  // 微弱點光源
-  const glow=new THREE.PointLight(itemColor,0.8,3,2);
-  glow.position.y=0.3; g.add(glow);
-
-  // 近距離偵測用碰撞體
+  // 近距離偵測用碰撞體（先加，GLB 載入前也能偵測）
   const prox=new THREE.Mesh(new THREE.BoxGeometry(2.5,2.5,2.5),new THREE.MeshBasicMaterial({visible:false}));
   prox.name='itemProx'; prox.userData={itemIdx,posIdx,itemName:item.name,modelName:item.modelName}; g.add(prox);
 
-  g.position.copy(pos);
+  // 底座發光環
+  const baseMat=new THREE.MeshBasicMaterial({color:itemColor,transparent:true,opacity:0.7});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.25,0.05,16),baseMat);
+  base.position.y=0.025; g.add(base);
+
+  // 發光圓柱光束往上
+  const beamMat=new THREE.MeshBasicMaterial({color:itemColor,transparent:true,opacity:0.08,side:THREE.DoubleSide});
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.22,2.0,12,1,true),beamMat);
+  beam.position.y=1.0; g.add(beam);
+
+  // 微弱點光源
+  const glow=new THREE.PointLight(itemColor,1.2,4,1.8);
+  glow.position.y=0.5; g.add(glow);
+
   scene.add(g);
   spawnedItems.push({group:g,posIdx,itemIdx});
   document.getElementById('found-count').textContent=spawnedItems.length;
+
+  if(item.glbFile && typeof THREE.GLTFLoader!=='undefined'){
+    // 載入真實 GLB 模型
+    new THREE.GLTFLoader().load(item.glbFile,
+      gltf=>{
+        const model=gltf.scene;
+        const bbox=new THREE.Box3().setFromObject(model);
+        const size=bbox.getSize(new THREE.Vector3());
+        const sc=0.8/Math.max(size.x,size.y,size.z);
+        model.scale.setScalar(sc);
+        bbox.setFromObject(model);
+        const center=bbox.getCenter(new THREE.Vector3());
+        // 對齊底部在地板
+        model.position.set(-center.x, -bbox.min.y+0.05, -center.z);
+        model.traverse(ch=>{
+          if(ch.isMesh){
+            ch.castShadow=true;
+            const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+            ms.forEach(mat=>{ mat.roughness=0.8; });
+          }
+        });
+        g.add(model);
+        console.log('Item GLB loaded:',item.name);
+      },
+      null,
+      err=>{ console.warn('Item GLB failed:',item.name, err.message||err); addCanvasPlane(g,item); }
+    );
+  } else {
+    // Fallback: canvas 圖板
+    addCanvasPlane(g,item);
+  }
+}
+
+function addCanvasPlane(g, item){
+  if(!item.draw) return;
+  const cvs=document.createElement('canvas'); cvs.width=256; cvs.height=256;
+  item.draw(cvs.getContext('2d'),256,256);
+  const plane=new THREE.Mesh(
+    new THREE.PlaneGeometry(0.85,0.85),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cvs),side:THREE.DoubleSide,transparent:true})
+  );
+  plane.position.y=0.5;
+  // 讓圖板朝向玩家（始終面向 XZ 平面）
+  plane.userData.billboard=true;
+  g.add(plane);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -898,6 +935,15 @@ function render(){
   camera.position.y = isMoving ? Math.sin(t*7)*0.04 : 0;
 
   if(sceneBright && ceilingLight) ceilingLight.intensity=4.5+Math.sin(t*0.5)*0.2;
+
+  // Billboard：讓 canvas 圖板面向玩家
+  for(const obj of spawnedItems){
+    obj.group.children.forEach(ch=>{
+      if(ch.userData&&ch.userData.billboard){
+        ch.lookAt(camera.position);
+      }
+    });
+  }
 
   // 開關脈衝
   if(switchGroup && !switchGroup.userData.activated){
