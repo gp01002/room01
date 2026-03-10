@@ -149,7 +149,7 @@ canvas { display:block; }
 <div id="hud">
   <div style="animation:flick 5s infinite">── 恐 怖 房 間 ──</div>
   <div id="hud-right">
-    <div id="hud-count">物 品 &nbsp;<span id="found-count">0</span></div>
+    <div id="hud-count" style="animation:flick 6s infinite">── 找 到 開 關 ──</div>
   </div>
 </div>
 
@@ -559,16 +559,15 @@ const ITEMS = [
 // ══════════════════════════════════════════════════════════════════
 let scene, camera, renderer, clock;
 let yaw=0, pitch=0, isLocked=false, gameActive=false;
-let switchGroup=null;      // 目前唯一的開關
-let spawnedItems=[];       // 房間裡已出現的物品（累積不消失）
+let switchGroup=null;   // 目前的開關（一次只有一個）
+let currentItem=null;   // 目前顯示的物品（一次只有一個，關燈就消失）
 let sceneBright=false;
-let lightTimer=null;       // 5秒關燈計時器
-let usedItemIdxs=[];       // 已用過的物品索引（避免重複）
-let doorEyesMesh=null;
+let lightTimer=null;
+let usedItemIdxs=[];
 let ceilingLight=null;
 let t=0;
 let skipRequested=false;
-let powerGltfCache=null;   // 儲存 power.glb 以便重複使用
+let powerGltfCache=null;
 
 const RC = new THREE.Raycaster(); RC.far=12;
 const keys={};
@@ -784,11 +783,18 @@ function spawnSwitch(){
   }
 
   // 永遠有一個發光方塊確保可見（懸浮在模型上）
+  // 白色發光方塊 beacon（永遠可見）
   const beacon=new THREE.Mesh(
-    new THREE.BoxGeometry(0.15,0.15,0.15),
-    new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9})
+    new THREE.BoxGeometry(0.22,0.22,0.22),
+    new THREE.MeshBasicMaterial({color:0xffffff})
   );
-  beacon.position.y=0.5; g.add(beacon);
+  beacon.position.y=0; g.add(beacon);
+  // 發光環
+  const swRing=new THREE.Mesh(
+    new THREE.TorusGeometry(0.3,0.04,8,24),
+    new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.8})
+  );
+  swRing.rotation.x=Math.PI/2; g.add(swRing);
 
   const light=new THREE.PointLight(color,3.0,8,1.5); g.add(light);
   const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.4,1.4),new THREE.MeshBasicMaterial({visible:false}));
@@ -802,13 +808,10 @@ function spawnSwitch(){
   console.log('Switch spawned at',pos.x.toFixed(1),pos.y.toFixed(1),pos.z.toFixed(1));
 }
 
-// 在房間裡放一個物品實體（累積）
+// 在房間裡放一個物品（開燈時出現，關燈時由 removeCurrentItem 移除）
 function spawnItemInRoom(itemIdx){
-  const usedPositions=spawnedItems.map(o=>o.posIdx);
-  let posIdx;
-  do { posIdx=Math.floor(Math.random()*ITEM_POSITIONS.length); }
-  while(usedPositions.includes(posIdx) && usedPositions.length<ITEM_POSITIONS.length);
-
+  removeCurrentItem(); // 先確保清掉舊的
+  const posIdx=Math.floor(Math.random()*ITEM_POSITIONS.length);
   const pos=ITEM_POSITIONS[posIdx].clone();
   const item=ITEMS[itemIdx];
   const itemColor=parseInt((item.color?item.color[0]||'#330000':'#330000').replace('#',''),16);
@@ -831,8 +834,7 @@ function spawnItemInRoom(itemIdx){
   glow.position.y=0.4; g.add(glow);
 
   scene.add(g);
-  spawnedItems.push({group:g,posIdx,itemIdx});
-  document.getElementById('found-count').textContent=spawnedItems.length;
+  currentItem=g;
 
   if(item.glbFile && typeof THREE.GLTFLoader!=='undefined'){
     new THREE.GLTFLoader().load(item.glbFile,
@@ -945,12 +947,10 @@ function render(){
 
   if(sceneBright && ceilingLight) ceilingLight.intensity=4.5+Math.sin(t*0.5)*0.2;
 
-  // Billboard：讓 canvas 圖板面向玩家
-  for(const obj of spawnedItems){
-    obj.group.children.forEach(ch=>{
-      if(ch.userData&&ch.userData.billboard){
-        ch.lookAt(camera.position);
-      }
+  // Billboard：canvas 圖板面向玩家
+  if(currentItem){
+    currentItem.children.forEach(ch=>{
+      if(ch.userData&&ch.userData.billboard) ch.lookAt(camera.position);
     });
   }
 
@@ -961,27 +961,20 @@ function render(){
     if(switchGroup.userData.light) switchGroup.userData.light.intensity=2.0+Math.sin(t*2.5)*1.0;
   }
 
-  // 物品近距離偵測（2.2單位內顯示提示）
-  if(gameActive && sceneBright){
-    const camPos=camera.position;
-    let nearItem=null;
-    for(const obj of spawnedItems){
-      const d=camPos.distanceTo(obj.group.position);
-      if(d<2.2){ nearItem=obj; break; }
-    }
+  // 物品近距離提示（2.5單位內）
+  if(gameActive && sceneBright && currentItem){
+    const d=camera.position.distanceTo(currentItem.position);
     const hintEl=document.getElementById('item-hint');
-    if(nearItem){
-      const prox=nearItem.group.children.find(c=>c.name==='itemProx');
-      if(prox && hintEl){
-        hintEl.innerHTML='<b>'+prox.userData.itemName+'</b><br><span>↗ '+prox.userData.modelName+'</span>';
-        hintEl.classList.add('show');
-      }
-    } else {
-      if(hintEl) hintEl.classList.remove('show');
+    const prox=currentItem.children.find(c=>c.name==='itemProx');
+    if(d<2.5 && prox && hintEl){
+      hintEl.innerHTML='<b>'+prox.userData.itemName+'</b><br><span>'+prox.userData.modelName+'</span>';
+      hintEl.classList.add('show');
+    } else if(hintEl){
+      hintEl.classList.remove('show');
     }
   } else {
-    const hintEl=document.getElementById('item-hint');
-    if(hintEl) hintEl.classList.remove('show');
+    const h=document.getElementById('item-hint');
+    if(h) h.classList.remove('show');
   }
 
   // Crosshair aim
@@ -1032,21 +1025,21 @@ function activateSwitch(sw){
   if(sw.userData.light) sw.userData.light.intensity=0;
   flashScreen(); playSound();
 
-  // 選一個還沒用過的物品
+  // 選物品
   const available=ITEMS.map((_,i)=>i).filter(i=>!usedItemIdxs.includes(i));
   const idx = available.length ? available[Math.floor(Math.random()*available.length)] : Math.floor(Math.random()*ITEMS.length);
   usedItemIdxs.push(idx);
-  if(usedItemIdxs.length>=ITEMS.length) usedItemIdxs=[];  // 用完重置
+  if(usedItemIdxs.length>=ITEMS.length) usedItemIdxs=[];
 
-  // 場景亮起 + 物品出現
+  // 燈亮 + 出現一個物品
   brightenScene();
   spawnItemInRoom(idx);
 
-  // 5秒後關燈
+  // 5秒後：關燈 → 移除物品 → 生成新開關
   if(lightTimer) clearTimeout(lightTimer);
   lightTimer=setTimeout(()=>{
     darkenScene();
-    // 關燈後換位置生成新開關
+    removeCurrentItem();   // ← 關燈就移除物品
     setTimeout(()=>spawnSwitch(), 800);
   }, 5000);
 }
@@ -1065,6 +1058,13 @@ function darkenScene(){
   if(ceilingLight){ ceilingLight.intensity=0.6; ceilingLight.color.setHex(0xcc6628); }
   if(window.fill1){ fill1.intensity=0.2; fill1.color.setHex(0x3a2010); }
   if(window.fill2){ fill2.intensity=0.2; fill2.color.setHex(0x3a2010); }
+}
+
+function removeCurrentItem(){
+  if(currentItem){ scene.remove(currentItem); currentItem=null; }
+  // 也清掉 item-hint
+  const h=document.getElementById('item-hint');
+  if(h) h.classList.remove('show');
 }
 
 // ══════════════════════════════════════════════════════════════════
