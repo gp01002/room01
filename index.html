@@ -10,15 +10,26 @@ body{background:#000;overflow:hidden;font-family:'Courier New',monospace}
 canvas{display:block}
 #start-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:0}
 /* 開始畫面：大圖 + 兩個小圖並排 */
-.start-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:600px;padding:0 24px;gap:16px}
-.start-big{width:100%;cursor:default}
-.start-big img{width:100%;height:auto;display:block;object-fit:contain}
-.start-row{display:flex;gap:16px;width:100%}
-.start-small{flex:1;cursor:pointer;border:none;background:none;padding:0;transition:transform .2s,opacity .2s}
-.start-small:hover{transform:scale(1.04);opacity:.85}
-.start-small img{width:100%;height:auto;display:block;object-fit:contain}
-.start-small.dim-btn{opacity:.35;cursor:default}
-.start-small.dim-btn:hover{transform:none;opacity:.35}
+#start-screen{background:#000}
+.start-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;max-width:560px;padding:0 16px;gap:8px
+}
+.start-big{width:88%;cursor:default;margin:0 auto}
+.start-big img{width:100%;height:auto;display:block;object-fit:contain;background:transparent}
+.start-row{display:flex;gap:24px;width:100%;justify-content:center;align-items:center}
+.start-small{
+  flex:0 0 42%;cursor:pointer;
+  border:none;background:transparent;padding:0;
+  transition:transform .22s,filter .22s
+}
+.start-small:hover{transform:scale(1.06);filter:brightness(1.15)}
+.start-small img{
+  width:100%;height:auto;display:block;
+  object-fit:contain;background:transparent;mix-blend-mode:normal
+}
+.start-small.dim-btn{opacity:.32;cursor:default;filter:grayscale(.5)}
+.start-small.dim-btn:hover{transform:none;filter:grayscale(.5)}
 .btn{display:none}
 #start-title{display:none}
 #start-sub{display:none}
