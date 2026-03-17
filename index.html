@@ -21,16 +21,13 @@ canvas{display:block}
 .start-small{
   flex:0 0 30%;cursor:pointer;
   border:none;background:transparent;padding:0;
-  transition:transform .22s,filter .22s
+  transition:transform .18s;
+  opacity:.75;
 }
-.start-small:hover{transform:scale(1.06);filter:brightness(1.2)}
-.start-small img{
-  width:100%;height:auto;display:block;
-  object-fit:contain;
-  mix-blend-mode:screen;  /* 讓白色背景融入黑底，白框消失 */
-}
-.start-small.dim-btn{opacity:.32;cursor:default;filter:grayscale(.6)}
-.start-small.dim-btn:hover{transform:none;filter:grayscale(.6)}
+.start-small:hover{ transform:scale(1.07); opacity:1; }
+.start-small img{ width:100%;height:auto;display:block;object-fit:contain; }
+.start-small.dim-btn{ opacity:.45; }
+.start-small.dim-btn:hover{ transform:scale(1.07); opacity:.75; }
 .btn{display:none}
 #start-title{display:none}
 #start-sub{display:none}
@@ -974,6 +971,48 @@ function startGame(){
   document.getElementById('start-screen').style.display='none';
   gameActive=true;
   renderer.domElement.requestPointerLock();
+}
+
+// 去除圖片白色背景（canvas 逐像素處理）
+function removeWhiteBg(imgEl, threshold){
+  if(!imgEl || !imgEl.complete || imgEl.naturalWidth===0) return;
+  try{
+    const cv=document.createElement('canvas');
+    cv.width=imgEl.naturalWidth; cv.height=imgEl.naturalHeight;
+    const ctx=cv.getContext('2d');
+    ctx.drawImage(imgEl,0,0);
+    const d=ctx.getImageData(0,0,cv.width,cv.height);
+    const data=d.data, th=threshold||220;
+    for(let i=0;i<data.length;i+=4){
+      const r=data[i],g=data[i+1],b=data[i+2];
+      // 接近白色的像素設為透明
+      if(r>th && g>th && b>th){
+        const brightness=(r+g+b)/3;
+        // 漸變透明（邊緣自然過渡）
+        data[i+3]=Math.round(255*(1-(brightness-th)/(255-th)));
+      }
+    }
+    ctx.putImageData(d,0,0);
+    imgEl.src=cv.toDataURL('image/png');
+  }catch(e){ /* CORS 失敗就算了 */ }
+}
+
+function initRemoveWhiteBg(){
+  // 處理所有 start-small 的 img
+  document.querySelectorAll('.start-small img').forEach(img=>{
+    if(img.complete && img.naturalWidth>0){
+      removeWhiteBg(img, 215);
+    } else {
+      img.addEventListener('load',()=>removeWhiteBg(img, 215));
+    }
+  });
+}
+
+// 在 DOM ready 後執行
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', initRemoveWhiteBg);
+} else {
+  setTimeout(initRemoveWhiteBg, 100);
 }
 
 initThree();
