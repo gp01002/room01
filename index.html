@@ -71,6 +71,15 @@ canvas{display:block}
   <div id="diary-tap">— 點 擊 繼 續 —</div>
 </div>
 
+<!-- 手機虛擬搖桿 -->
+<div id="joy-zone" style="position:fixed;bottom:40px;left:30px;z-index:30;display:none;touch-action:none">
+  <div id="joy-base" style="width:90px;height:90px;border-radius:50%;border:1px solid #333;background:rgba(0,0,0,.45);position:relative;touch-action:none">
+    <div id="joy-thumb" style="width:36px;height:36px;border-radius:50%;background:rgba(100,0,0,.5);border:1px solid #550000;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none"></div>
+  </div>
+</div>
+<!-- 手機點擊區（右半邊轉視角 / 點擊開關）-->
+<div id="tap-zone" style="position:fixed;top:0;right:0;width:55%;height:100%;z-index:28;display:none;touch-action:none"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
@@ -133,6 +142,7 @@ let sceneBright=false, lightTimer=null;
 let usedItemIdxs=[], lastSwIdx=-1;
 let powerCache=null, skipRequested=false, t=0;
 let xrSession=null, vrGazeTimer=0, vrReticle=null, cameraRig=null;
+const joy={x:0,y:0};
 const RC = new THREE.Raycaster(); RC.far=10;
 const keys={};
 document.addEventListener('keydown',e=>keys[e.code]=true);
@@ -176,6 +186,7 @@ function initThree(){
   document.getElementById('diary-screen').addEventListener('click', closeDiary);
 
   buildLights();
+  setupTouch();
   loadAll();
 }
 
@@ -319,16 +330,25 @@ function spawnSwitch(){
 
   if(powerCache){
     const model = powerCache.scene.clone(true);
-    // 精確旋轉：rotation.x=+90° 讓模型直立貼牆
-    // 原始 Y=厚度(-16.6~0), Z=高度(0.7~52.7)
-    // +90° 後：Z→Y（直立）, Y→-Z（突出牆外）
-    model.rotation.x = Math.PI/2;
-    const sc = 0.12/52;  // 面板約4cm
+
+    // 關鍵修正：GLB clone 自帶 transform hierarchy，
+    // 直接設 model.rotation 會被內部節點覆蓋。
+    // 用 wrapper group 包住，rotation 設在 wrapper 上才有效。
+    const wrapper = new THREE.Group();
+
+    const sc = 0.12/52;   // 面板 ≈ 4cm
     model.scale.setScalar(sc);
-    // 精確偏移（由原始頂點數據計算）:
-    // 旋轉後 center=(4.2,-26.7,-8.3) * sc → position = -center
-    // Z: min=-16.6*sc=-0.038 → +0.038 讓背面貼牆(z=0)突出朝玩家
+
+    // 置中偏移（rotation.x=+PI/2 後的精確計算）:
+    //   X center = 4.2*sc = 0.0097  → pos.x = -0.0097
+    //   Y_new = -Z_old, center = -26.7*sc = -0.0616 → pos.y = +0.0616
+    //   Z_new = Y_old, back(Y=-16.6)→z=-0.038 → pos.z = +0.038 讓背面貼牆
     model.position.set(-0.010, 0.062, 0.038);
+
+    // 旋轉放在 wrapper（不動 model 本身）
+    wrapper.rotation.x = Math.PI / 2;
+    wrapper.add(model);
+
     model.traverse(ch=>{
       if(!ch.isMesh) return;
       const ms=Array.isArray(ch.material)?ch.material:[ch.material];
@@ -336,11 +356,12 @@ function spawnSwitch(){
         mat=mat.clone();
         mat.side=THREE.DoubleSide;
         mat.emissive=new THREE.Color(color);
-        mat.emissiveIntensity=0.5;
+        mat.emissiveIntensity=0.6;
         ch.material=mat;
       });
     });
-    g.add(model);
+
+    g.add(wrapper);
   } else {
     // Fallback: 扁平面板
     const plate = new THREE.Mesh(
@@ -614,6 +635,15 @@ function render(){
     cameraRig.position.y = moving ? Math.sin(t*7)*0.035 : 0;
   }
 
+  // 手機搖桿移動
+  if(gameActive && (joy.x||joy.y)){
+    const spd=3*dt;
+    const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    cameraRig.position.addScaledVector(fwd,-joy.y*spd);
+    cameraRig.position.addScaledVector(right,joy.x*spd);
+  }
+
   // 移動邊界
   cameraRig.position.x=Math.max(-5.2, Math.min(2.5, cameraRig.position.x));
   cameraRig.position.z=Math.max(-2.8, Math.min(4.5, cameraRig.position.z));
@@ -702,6 +732,77 @@ function render(){
 
   renderer.render(scene, camera);
   }catch(err){ console.error('render:',err); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MOBILE TOUCH
+// ══════════════════════════════════════════════════════════════════
+function setupTouch(){
+  if(!('ontouchstart' in window)) return;
+  // 顯示搖桿和點擊區
+  document.getElementById('joy-zone').style.display='block';
+  document.getElementById('tap-zone').style.display='block';
+
+  const base=document.getElementById('joy-base');
+  const thumb=document.getElementById('joy-thumb');
+  const R=27; // 搖桿最大位移半徑
+  let jCenter={x:0,y:0};
+
+  base.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    const t=e.touches[0];
+    jCenter={x:t.clientX,y:t.clientY};
+  },{passive:false});
+
+  base.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    const t=e.touches[0];
+    let dx=t.clientX-jCenter.x, dy=t.clientY-jCenter.y;
+    const len=Math.sqrt(dx*dx+dy*dy);
+    if(len>R){dx=dx/len*R;dy=dy/len*R;}
+    joy.x=dx/R; joy.y=dy/R;
+    thumb.style.left=(45+dx)+'px';
+    thumb.style.top=(45+dy)+'px';
+    thumb.style.transform='none';
+  },{passive:false});
+
+  base.addEventListener('touchend',e=>{
+    e.preventDefault();
+    joy.x=0; joy.y=0;
+    thumb.style.left='50%'; thumb.style.top='50%';
+    thumb.style.transform='translate(-50%,-50%)';
+  },{passive:false});
+
+  // 右側滑動轉視角 + 點擊啟動開關
+  const tapZone=document.getElementById('tap-zone');
+  let lookStart={x:0,y:0}, lookId=null;
+
+  tapZone.addEventListener('touchstart',e=>{
+    for(const t of e.changedTouches){
+      if(lookId===null){ lookId=t.identifier; lookStart={x:t.clientX,y:t.clientY}; }
+    }
+  });
+  tapZone.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier===lookId){
+        yaw  -=(t.clientX-lookStart.x)*.003;
+        pitch-=(t.clientY-lookStart.y)*.003;
+        pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));
+        camera.rotation.y=yaw; camera.rotation.x=pitch;
+        lookStart={x:t.clientX,y:t.clientY};
+      }
+    }
+  },{passive:false});
+  tapZone.addEventListener('touchend',e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier===lookId){
+        lookId=null;
+        // 短點擊 → 嘗試啟動開關
+        if(gameActive){ const sw=getAimedSwitch(); if(sw) activateSwitch(); }
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════
