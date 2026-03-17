@@ -3,288 +3,722 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>恐怖房間 - VR 優化版</title>
+<title>恐怖房間</title>
 <style>
-/* 保持原有樣式 */
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
-canvas { display:block; }
-#start-screen { position:fixed; inset:0; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
-#start-title { color:#8b0000; font-size:2.2rem; letter-spacing:14px; text-shadow:0 0 40px #ff0000; animation:flick 3s infinite; margin-bottom:8px; }
-#start-sub { color:#252525; font-size:0.68rem; letter-spacing:6px; margin-bottom:50px; }
-.btn { padding:12px 42px; background:transparent; border:1px solid #550000; color:#550000; font-size:0.72rem; letter-spacing:5px; cursor:pointer; transition:all 0.3s; margin:5px; font-family:'Courier New',monospace; }
-.btn:hover { background:#55000018; box-shadow:0 0 18px #55000055; color:#cc0000; border-color:#cc0000; }
-.btn.dim { border-color:#1a1a1a; color:#1a1a1a; font-size:0.6rem; }
-#hud { position:fixed; top:0; left:0; right:0; padding:14px 22px; background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent); display:flex; justify-content:space-between; align-items:center; pointer-events:none; z-index:10; color:#440000; font-size:0.65rem; letter-spacing:4px; }
-#crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:20; width:20px; height:20px; }
-#ch-h,#ch-v { position:absolute; background:rgba(255,255,255,0.38); }
-#ch-h { width:14px; height:1px; top:9px; left:3px; }
-#ch-v { width:1px; height:14px; top:3px; left:9px; }
-#crosshair.aimed #ch-h, #crosshair.aimed #ch-v { background:rgba(255,100,0,0.95); }
-#aim-hint { position:fixed; top:57%; left:50%; transform:translateX(-50%); color:#bb3300; font-size:0.6rem; letter-spacing:5px; pointer-events:none; z-index:20; opacity:0; transition:opacity 0.15s; }
-#aim-hint.show { opacity:1; }
-#item-hint { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); border:1px solid #440000; color:#cc4400; font-size:0.8rem; letter-spacing:5px; text-align:center; padding:12px 28px; pointer-events:none; z-index:25; opacity:0; transition:opacity 0.3s; box-shadow:0 0 20px rgba(80,0,0,0.4); max-width:500px; }
-#item-hint.show { opacity:1; }
-#flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
-#diary-screen { position:fixed;inset:0;background:rgba(0,0,0,0.92); display:none;align-items:center;justify-content:center;z-index:55;flex-direction:column; }
-#diary-screen.show { display:flex; }
-#loader { position:fixed; inset:0; background:#000; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; }
-#loader-track { width:240px; height:2px; background:#111; margin:18px 0 10px; }
-#loader-fill { height:100%; width:0%; background:#550000; transition:width 0.15s; }
-#loader-msg { color:#222; font-size:0.58rem; letter-spacing:4px; }
-@keyframes flick { 0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.2} 93%{opacity:1} 95%{opacity:0.6} 96%{opacity:1} }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Courier New',monospace}
+canvas{display:block}
+#start-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+#start-title{color:#8b0000;font-size:2.2rem;letter-spacing:14px;text-shadow:0 0 40px #f00;animation:flick 3s infinite;margin-bottom:8px}
+#start-sub{color:#252525;font-size:0.68rem;letter-spacing:6px;margin-bottom:50px}
+.btn{padding:12px 42px;background:transparent;border:1px solid #550000;color:#550000;font-size:0.72rem;letter-spacing:5px;cursor:pointer;transition:all .3s;margin:5px;font-family:'Courier New',monospace}
+.btn:hover{background:#55000018;box-shadow:0 0 18px #55000055;color:#c00;border-color:#c00}
+.btn.dim{border-color:#1a1a1a;color:#1a1a1a;font-size:0.6rem}
+#hud{position:fixed;top:0;left:0;right:0;padding:14px 22px;background:linear-gradient(to bottom,rgba(0,0,0,.85),transparent);display:flex;justify-content:space-between;pointer-events:none;z-index:10;color:#440000;font-size:0.65rem;letter-spacing:4px}
+#crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;width:20px;height:20px}
+#ch-h,#ch-v{position:absolute;background:rgba(255,255,255,.38)}
+#ch-h{width:14px;height:1px;top:9px;left:3px}
+#ch-v{width:1px;height:14px;top:3px;left:9px}
+#crosshair.aimed #ch-h,#crosshair.aimed #ch-v{background:rgba(255,100,0,.95)}
+#aim-hint{position:fixed;top:57%;left:50%;transform:translateX(-50%);color:#bb3300;font-size:0.6rem;letter-spacing:5px;pointer-events:none;z-index:20;opacity:0;transition:opacity .15s}
+#aim-hint.show{opacity:1}
+#item-hint{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.88);border:1px solid #440000;color:#cc4400;font-size:0.78rem;letter-spacing:4px;text-align:center;padding:12px 28px;pointer-events:none;z-index:25;opacity:0;transition:opacity .3s;max-width:500px}
+#item-hint.show{opacity:1}
+#item-hint span{color:#333;font-size:0.5rem;display:block;margin-top:4px;letter-spacing:3px}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40;transition:opacity .4s}
+#diary-screen{position:fixed;inset:0;background:rgba(0,0,0,.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:55;cursor:pointer}
+#diary-screen.show{display:flex}
+#diary-img{max-width:88vw;max-height:80vh;border:1px solid #2a1400;box-shadow:0 0 50px rgba(60,20,0,.9)}
+#diary-tap{margin-top:16px;color:#442200;font-size:0.58rem;letter-spacing:5px;animation:flick 2.5s infinite}
+#loader{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center}
+#loader-track{width:240px;height:2px;background:#111;margin:18px 0 10px}
+#loader-fill{height:100%;width:0%;background:#550000;transition:width .2s}
+#loader-msg{color:#222;font-size:0.58rem;letter-spacing:4px}
+#loader-skip{margin-top:24px;padding:8px 28px;background:transparent;border:1px solid #181818;color:#181818;font-size:0.55rem;letter-spacing:4px;cursor:pointer;font-family:'Courier New',monospace;display:none}
+#loader-skip:hover{border-color:#440000;color:#440000}
+#hint-bar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#1a1a1a;font-size:0.5rem;letter-spacing:3px;pointer-events:none;z-index:10}
+@keyframes flick{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.2}93%{opacity:1}95%{opacity:.6}96%{opacity:1}}
 </style>
 </head>
 <body>
 
 <div id="loader">
-  <div style="color:#330000;font-size:0.65rem;letter-spacing:6px">載 入 中</div>
+  <div style="color:#330000;font-size:.65rem;letter-spacing:6px">載 入 中</div>
   <div id="loader-track"><div id="loader-fill"></div></div>
   <div id="loader-msg">準備中...</div>
+  <button id="loader-skip" onclick="skipLoad()">略 過</button>
 </div>
 
 <div id="start-screen">
   <div id="start-title">恐 怖 房 間</div>
-  <div id="start-sub">找 到 發 光 的 開 關</div>
+  <div id="start-sub">找 到 牆 上 的 開 關</div>
   <button class="btn" onclick="startGame()">進 入 房 間</button>
   <button class="btn dim" id="vr-btn">VR 偵 測 中...</button>
 </div>
 
 <div id="hud">
   <div style="animation:flick 5s infinite">── 恐 怖 房 間 ──</div>
-  <div id="hud-count">── 找 到 開 關 ──</div>
+  <div id="hud-right"></div>
 </div>
-
 <div id="crosshair"><div id="ch-h"></div><div id="ch-v"></div></div>
 <div id="aim-hint">[ 點 擊 ] 啟 動</div>
 <div id="item-hint"></div>
 <div id="flash"></div>
+<div id="hint-bar">WASD 走 動 ｜ 滑 鼠 轉 向 ｜ 點 擊 開 關</div>
 
 <div id="diary-screen">
-  <img id="diary-img" src="" style="max-width:85vw;max-height:78vh;border:1px solid #2a1800;box-shadow:0 0 40px rgba(60,20,0,0.8);image-rendering:pixelated;">
-  <div style="margin-top:16px;color:#442200;font-size:0.6rem;letter-spacing:5px;animation:flick 3s infinite">— 點 擊 繼 續 —</div>
+  <img id="diary-img" src="" alt="">
+  <div id="diary-tap">— 點 擊 繼 續 —</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
 <script>
+'use strict';
 // ══════════════════════════════════════════════════════════════════
-//  核心變數與配置
+//  CONFIG — 房間 GLB 精確座標（room.glb 分析結果）
+//  地板 Y=-2.30  天花板 Y=+2.46  眼睛 Y=0
+//  牆面：北 Z=-3.09  東 X=2.73  西 X=-5.54  南 Z=4.86
 // ══════════════════════════════════════════════════════════════════
+const BASE = 'https://raw.githubusercontent.com/gp01002/room01/main/';
+
 const ITEMS = [
-  { name: '古 老 電 話', modelName: 'Old Rotary Telephone', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_telephone.glb' },
-  { name: '破 碎 的 娃 娃', modelName: 'Broken Porcelain Doll', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken_doll.glb' },
-  { name: '音 樂 盒', modelName: 'Antique Music Box', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/music%20box%20antique.glb' },
-  { name: '染 血 的 鑰 匙', modelName: 'Blood-Stained Key', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_key_bloodstained.glb' },
-  { name: '碎 裂 的 鏡 子', modelName: 'Cracked Mirror', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken%20mirror.glb' },
-  { name: '罐 中 的 眼 睛', modelName: 'Eye in Jar', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/eye%20jar.glb' },
-  { name: '融 化 的 蠟 燭', modelName: 'Melting Candle', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/melting%20candle.glb' },
-  { name: '撕 破 的 日 記', modelName: 'Old Book Diary', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old%20book%20diary.glb' },
-  { name: '停 止 的 時 鐘', modelName: 'Grandfather Clock', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/grandfather%20clock.glb' },
-  { name: '無 名 的 骨 頭', modelName: 'Human Skull', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/human%20skull.glb' }
+  { name:'古 老 電 話',   model:'Old Rotary Telephone', glb:'old_telephone.glb' },
+  { name:'破 碎 的 娃 娃', model:'Broken Porcelain Doll', glb:'broken_doll.glb' },
+  { name:'音 樂 盒',      model:'Antique Music Box',     glb:'music%20box%20antique.glb' },
+  { name:'染 血 的 鑰 匙', model:'Blood-Stained Key',     glb:null },
+  { name:'碎 裂 的 鏡 子', model:'Cracked Mirror',        glb:'broken%20mirror.glb' },
+  { name:'罐 中 的 眼 睛', model:'Eye in Jar',            glb:'eye%20jar.glb' },
+  { name:'融 化 的 蠟 燭', model:'Melting Candle',        glb:'melting%20candle.glb' },
+  { name:'撕 破 的 日 記', model:'Old Book Diary',        glb:'old%20book%20diary.glb' },
+  { name:'停 止 的 時 鐘', model:'Grandfather Clock',     glb:'grandfather%20clock.glb' },
+  { name:'無 名 的 骨 頭', model:'Human Skull',           glb:'human%20skull.glb' },
 ];
 
-const SWITCH_COLORS = [0x00aaff, 0xff4400, 0x00ff88, 0xff00cc, 0xffcc00];
-const SWITCH_DEFS_WALL = [
-  { pos: new THREE.Vector3( 0.5, -0.5, -3.15), rotY: 0, label: '北牆中央' },
-  { pos: new THREE.Vector3( 2.78, -0.5, 0.5), rotY: -90, label: '東牆' },
-  { pos: new THREE.Vector3(-5.58, -0.5, 0.5), rotY: 90, label: '西牆' },
-  { pos: new THREE.Vector3(-1.5, -0.5, 4.9), rotY: 180, label: '南牆' }
+// 開關貼牆位置（已精確對齊牆面 + 0.12 偏移）
+const SW_DEFS = [
+  { p:[ 0.5, -0.5,-3.09], ry:  0, l:'北牆中央' },
+  { p:[-3.5, -0.5,-3.09], ry:  0, l:'北牆西側' },
+  { p:[ 2.61,-0.5, -2.0], ry:-90, l:'東牆北段' },
+  { p:[ 2.61,-0.5,  2.0], ry:-90, l:'東牆南段' },
+  { p:[-5.42,-0.5,  0.0], ry: 90, l:'西牆中央' },
+  { p:[-5.42,-0.5,  3.0], ry: 90, l:'西牆南段' },
+  { p:[-1.5, -0.5, 4.74], ry:180, l:'南牆西側' },
+];
+const SW_COLORS = [0x00aaff,0xff4400,0x00ff88,0xff00cc,0xffcc00];
+
+// 物品出現位置（依家具分布）
+const ITEM_POS = [
+  [ 0.0,-2.30, 0.5,'房間中央'],
+  [ 4.8,-0.85, 0.5,'書桌上'],
+  [ 1.5,-2.30,-4.5,'床邊'],
+  [-1.5,-2.30,-2.5,'衣櫃旁'],
+  [-4.5,-2.30,-3.5,'西北角'],
+  [-2.0,-2.30, 3.8,'南牆前'],
+  [ 3.5,-2.30, 3.5,'東南角'],
+  [ 0.0,-2.30,-2.5,'北牆前'],
 ];
 
-let scene, camera, renderer, clock, switchGroup, currentItem, xrSession;
-let isLocked = false, gameActive = false, yaw = 0, pitch = 0;
-const RC = new THREE.Raycaster(); RC.far = 10;
-const keys = {};
+const DIARY_BASE = BASE;
+const DIARY_IMGS = ['diary_01.png','diary_02.png','diary_03.png','diary_04.png',
+                    'diary_05.png','diary_06.png','diary_07.png','diary_08.png',
+                    'diary_09.png','diary_10.png'];
+
+// ── state ─────────────────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let ceilingLight, ambientLight, fill1, fill2;
+let yaw=0, pitch=0, isLocked=false, gameActive=false;
+let switchGroup=null, currentItem=null;
+let sceneBright=false, lightTimer=null;
+let usedItemIdxs=[], lastSwIdx=-1;
+let powerCache=null, skipRequested=false, t=0;
+let xrSession=null, vrGazeTimer=0, vrReticle=null;
+const RC = new THREE.Raycaster(); RC.far=10;
+const keys={};
+document.addEventListener('keydown',e=>keys[e.code]=true);
+document.addEventListener('keyup',  e=>keys[e.code]=false);
 
 // ══════════════════════════════════════════════════════════════════
-//  初始化
+//  INIT
 // ══════════════════════════════════════════════════════════════════
-function init() {
+function initThree(){
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x050302, 0.05);
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 0, 2);
+  scene.fog = new THREE.FogExp2(0x050302, 0.03);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 60);
+  camera.position.set(0, 0, 2);
+  camera.rotation.order = 'YXZ';
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.shadowMap.enabled = true;
   renderer.xr.enabled = true;
-  document.body.appendChild(renderer.domElement);
+  document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
   clock = new THREE.Clock();
-  
-  // 燈光
-  const ambient = new THREE.AmbientLight(0x120e06, 0.3);
-  scene.add(ambient);
-  
-  const ceilingLight = new THREE.PointLight(0xcc6628, 0.6, 15);
-  ceilingLight.position.set(0, 2, 0);
-  scene.add(ceilingLight);
 
-  window.addEventListener('resize', onWindowResize);
-  document.addEventListener('keydown', e => keys[e.code] = true);
-  document.addEventListener('keyup', e => keys[e.code] = false);
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
   document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mousedown', () => { if(gameActive && isLocked) checkInteraction(); });
-  document.getElementById('diary-screen').onclick = closeDiary;
+  document.addEventListener('click', onClick);
+  document.addEventListener('pointerlockchange',()=>{
+    isLocked = document.pointerLockElement===renderer.domElement;
+  });
+  document.getElementById('diary-screen').addEventListener('click', closeDiary);
 
-  loadAssets();
+  buildLights();
+  loadAll();
 }
 
-function loadAssets() {
-  const loader = new THREE.GLTFLoader();
-  document.getElementById('loader').style.display = 'flex';
-  
-  // 載入房間
-  loader.load('https://raw.githubusercontent.com/gp01002/room01/main/room.glb', gltf => {
-    scene.add(gltf.scene);
-    // 載入開關模型
-    loader.load('https://raw.githubusercontent.com/gp01002/room01/main/dirty_light_switch.glb', powerGltf => {
-      window.powerGltfCache = powerGltf;
-      document.getElementById('loader').style.display = 'none';
-      spawnSwitch();
-      checkVR();
-      renderer.setAnimationLoop(render);
-    });
+// ══════════════════════════════════════════════════════════════════
+//  LIGHTS
+// ══════════════════════════════════════════════════════════════════
+function buildLights(){
+  ambientLight = new THREE.AmbientLight(0x120e06, 0.25);
+  scene.add(ambientLight);
+
+  ceilingLight = new THREE.PointLight(0xcc6628, 0.55, 16, 1.8);
+  ceilingLight.position.set(0, 2.0, 0);
+  scene.add(ceilingLight);
+
+  fill1 = new THREE.PointLight(0x3a2010, 0.15, 12, 2);
+  fill1.position.set(-4, 1.5, -4);
+  scene.add(fill1);
+
+  fill2 = new THREE.PointLight(0x3a2010, 0.15, 12, 2);
+  fill2.position.set(4, 1.5, 3);
+  scene.add(fill2);
+
+  // VR 準星
+  const mat = new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8});
+  vrReticle = new THREE.Group();
+  vrReticle.add(new THREE.Mesh(new THREE.BoxGeometry(.022,.002,.002),mat));
+  vrReticle.add(new THREE.Mesh(new THREE.BoxGeometry(.002,.022,.002),mat));
+  scene.add(vrReticle);
+}
+
+function setLights(bright){
+  sceneBright = bright;
+  if(bright){
+    ambientLight.intensity = 1.8;
+    ceilingLight.intensity = 2.8; ceilingLight.color.setHex(0xfff0d0);
+    fill1.intensity = 1.4; fill1.color.setHex(0xffd890);
+    fill2.intensity = 1.4; fill2.color.setHex(0xffd890);
+  } else {
+    ambientLight.intensity = 0.25;
+    ceilingLight.intensity = 0.55; ceilingLight.color.setHex(0xcc6628);
+    fill1.intensity = 0.15; fill1.color.setHex(0x3a2010);
+    fill2.intensity = 0.15; fill2.color.setHex(0x3a2010);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  LOAD ASSETS
+// ══════════════════════════════════════════════════════════════════
+let skipRequested2=false;
+function skipLoad(){ skipRequested=true; }
+
+function loadAll(){
+  document.getElementById('loader').style.display='flex';
+  setTimeout(()=>document.getElementById('loader-skip').style.display='block', 3000);
+
+  loadGLB(BASE+'room.glb','room.glb')
+  .then(g=>{ if(g) placeRoom(g); else buildFallbackRoom(); })
+  .then(()=>loadGLB(BASE+'dirty_light_switch.glb','switch.glb'))
+  .then(g=>{ powerCache=g; })
+  .then(()=>{
+    document.getElementById('loader').style.display='none';
+    spawnSwitch();
+    checkVR();
+    renderer.setAnimationLoop(render);
   });
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  遊戲邏輯
-// ══════════════════════════════════════════════════════════════════
-function spawnSwitch() {
-  if(switchGroup) scene.remove(switchGroup);
-  const def = SWITCH_DEFS_WALL[Math.floor(Math.random() * SWITCH_DEFS_WALL.length)];
-  const color = SWITCH_COLORS[Math.floor(Math.random() * SWITCH_COLORS.length)];
-  
-  switchGroup = new THREE.Group();
-  switchGroup.position.copy(def.pos);
-  switchGroup.rotation.y = def.rotY * (Math.PI / 180);
-  switchGroup.userData = { activated: false, label: def.label };
-
-  // Hitbox
-  const hb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), new THREE.MeshBasicMaterial({ visible: false }));
-  hb.name = "switch_hitbox";
-  switchGroup.add(hb);
-
-  if(window.powerGltfCache) {
-    const model = window.powerGltfCache.scene.clone();
-    model.rotation.x = Math.PI/2;
-    model.scale.setScalar(0.002);
-    model.traverse(node => {
-      if(node.isMesh) {
-        node.material = node.material.clone();
-        node.material.emissive.setHex(color);
-        node.material.emissiveIntensity = 2;
-      }
-    });
-    switchGroup.add(model);
-  }
-  
-  const lp = new THREE.PointLight(color, 0.8, 2);
-  lp.position.set(0,0,0.1);
-  switchGroup.add(lp);
-  
-  scene.add(switchGroup);
-}
-
-function checkInteraction() {
-  RC.setFromCamera({x:0, y:0}, camera);
-  const hits = RC.intersectObjects(scene.children, true);
-  for(let hit of hits) {
-    if(hit.object.name === "switch_hitbox") {
-      activateSwitch();
-      break;
+function loadGLB(url, label){
+  return new Promise(resolve=>{
+    if(typeof THREE.GLTFLoader==='undefined'){ resolve(null); return; }
+    setLoaderMsg(label+' 載入中...');
+    let done=false, lastProg=Date.now();
+    const hard=setTimeout(()=>fin(null),9000);
+    const noResp=setTimeout(()=>{ if(Date.now()-lastProg>3000)fin(null); },3000);
+    const poll=setInterval(()=>{ if(skipRequested)fin(null); },300);
+    function fin(g){
+      if(done)return; done=true;
+      clearTimeout(hard);clearTimeout(noResp);clearInterval(poll);
+      setLoaderPct(100); resolve(g);
     }
+    new THREE.GLTFLoader().load(url,
+      g=>fin(g),
+      p=>{ lastProg=Date.now(); if(p.total>0) setLoaderPct(Math.round(p.loaded/p.total*100),label); },
+      ()=>fin(null)
+    );
+  });
+}
+
+function setLoaderMsg(m){ document.getElementById('loader-msg').textContent=m; }
+function setLoaderPct(p,l){
+  document.getElementById('loader-fill').style.width=p+'%';
+  if(l) document.getElementById('loader-msg').textContent=l+' '+p+'%';
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ROOM
+// ══════════════════════════════════════════════════════════════════
+function placeRoom(gltf){
+  const m = gltf.scene;
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const sc = 14 / Math.max(size.x, size.y, size.z);
+  m.scale.setScalar(sc);
+  box.setFromObject(m);
+  const center = box.getCenter(new THREE.Vector3());
+  m.position.set(-center.x, -box.min.y - 2.5, -center.z);
+  m.traverse(ch=>{
+    if(ch.isMesh){
+      ch.receiveShadow = true;
+      const ms = Array.isArray(ch.material)?ch.material:[ch.material];
+      ms.forEach(mat=>{ if(mat.color) mat.color.multiplyScalar(0.75); });
+    }
+  });
+  scene.add(m);
+}
+
+function buildFallbackRoom(){
+  // 簡易程序房間作 fallback
+  const wm = new THREE.MeshLambertMaterial({color:0x2a2218,side:THREE.BackSide});
+  const fm = new THREE.MeshLambertMaterial({color:0x1a140c});
+  const cm = new THREE.MeshLambertMaterial({color:0x080808,side:THREE.BackSide});
+  const box = new THREE.Mesh(new THREE.BoxGeometry(12,5.2,14),[wm,wm,cm,fm,wm,wm]);
+  scene.add(box);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SWITCH（開關）
+// ══════════════════════════════════════════════════════════════════
+function spawnSwitch(){
+  if(switchGroup){ scene.remove(switchGroup); switchGroup=null; }
+
+  // 隨機選不重複的牆位
+  let idx;
+  do { idx=Math.floor(Math.random()*SW_DEFS.length); }
+  while(idx===lastSwIdx && SW_DEFS.length>1);
+  lastSwIdx=idx;
+  const def=SW_DEFS[idx];
+  const color=SW_COLORS[Math.floor(Math.random()*SW_COLORS.length)];
+
+  const g = new THREE.Group();
+
+  if(powerCache){
+    const model = powerCache.scene.clone(true);
+    // 精確旋轉：rotation.x=+90° 讓模型直立貼牆
+    // 原始 Y=厚度(-16.6~0), Z=高度(0.7~52.7)
+    // +90° 後：Z→Y（直立）, Y→-Z（突出牆外）
+    model.rotation.x = Math.PI/2;
+    const sc = 0.12/52;
+    model.scale.setScalar(sc);
+    // 精確置中偏移（由頂點數據計算）
+    model.position.set(0.013, -0.062, 0.001);
+    model.traverse(ch=>{
+      if(!ch.isMesh) return;
+      const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+      ms.forEach(mat=>{
+        mat=mat.clone();
+        mat.side=THREE.DoubleSide;
+        mat.emissive=new THREE.Color(color);
+        mat.emissiveIntensity=0.5;
+        ch.material=mat;
+      });
+    });
+    g.add(model);
+  } else {
+    // Fallback: 扁平面板
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14,0.10,0.015),
+      new THREE.MeshBasicMaterial({color:0xdddddd})
+    );
+    plate.position.z=0.008;
+    g.add(plate);
+    const btn = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06,0.08,0.022),
+      new THREE.MeshBasicMaterial({color})
+    );
+    btn.position.z=0.019;
+    g.add(btn);
+  }
+
+  // 微弱點光源
+  const light = new THREE.PointLight(color, 0.6, 1.8, 2);
+  light.position.set(0, 0, 0.1);
+  g.add(light);
+
+  // 隱形 hitbox（足夠大可點擊）
+  const hb = new THREE.Mesh(
+    new THREE.BoxGeometry(0.55, 0.55, 0.35),
+    new THREE.MeshBasicMaterial({visible:false})
+  );
+  hb.name='hit'; g.add(hb);
+
+  // 貼牆放置
+  g.position.set(...def.p);
+  g.rotation.y = def.ry * Math.PI/180;
+  g.userData = { activated:false, light, label:def.l };
+  light.intensity = 0.6;
+
+  scene.add(g);
+  switchGroup = g;
+  console.log('Switch:', def.l);
+}
+
+function getAimedSwitch(){
+  if(!switchGroup||switchGroup.userData.activated) return null;
+  RC.setFromCamera({x:0,y:0}, camera);
+  const hb = switchGroup.children.find(c=>c.name==='hit');
+  if(!hb) return null;
+  return RC.intersectObjects([hb],false).length ? switchGroup : null;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  ITEM（物品）
+// ══════════════════════════════════════════════════════════════════
+function spawnItem(itemIdx){
+  removeItem();
+  const [x,y,z,label] = ITEM_POS[Math.floor(Math.random()*ITEM_POS.length)];
+  const item = ITEMS[itemIdx];
+  const g = new THREE.Group();
+  g.position.set(x,y,z);
+
+  // 小發光底環
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.18,0.022,8,24),
+    new THREE.MeshBasicMaterial({color:0x440000,transparent:true,opacity:0.7})
+  );
+  ring.rotation.x=Math.PI/2; ring.position.y=0.01; g.add(ring);
+
+  // 近距離偵測碰撞體
+  const prox = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5,2.5,2.5),
+    new THREE.MeshBasicMaterial({visible:false})
+  );
+  prox.name='itemProx';
+  prox.userData={name:item.name, model:item.model};
+  g.add(prox);
+
+  // 微弱點光
+  const glow = new THREE.PointLight(0x440000, 0.7, 2.5, 1.8);
+  glow.position.y=0.4; g.add(glow);
+
+  scene.add(g);
+  currentItem=g;
+
+  if(item.glb && typeof THREE.GLTFLoader!=='undefined'){
+    new THREE.GLTFLoader().load(BASE+item.glb,
+      gltf=>{
+        const model=gltf.scene;
+        const bbox=new THREE.Box3().setFromObject(model);
+        const size=bbox.getSize(new THREE.Vector3());
+        const sc=0.75/Math.max(size.x,size.y,size.z);
+        model.scale.setScalar(sc);
+        bbox.setFromObject(model);
+        // 底部貼地
+        model.position.set(
+          -(bbox.min.x+bbox.max.x)/2,
+          -bbox.min.y,
+          -(bbox.min.z+bbox.max.z)/2
+        );
+        model.traverse(ch=>{
+          if(ch.isMesh){ ch.castShadow=true; }
+        });
+        g.add(model);
+      },
+      null,
+      ()=>addCanvasPlane(g,item)
+    );
+  } else {
+    addCanvasPlane(g,item);
   }
 }
 
-function activateSwitch() {
-  if(switchGroup.userData.activated) return;
-  switchGroup.userData.activated = true;
-  
-  flashEffect();
-  const idx = Math.floor(Math.random() * ITEMS.length);
-  showDiary(idx);
+function addCanvasPlane(g, item){
+  // 顯示物品名稱的簡單面板
+  const cv=document.createElement('canvas'); cv.width=256; cv.height=128;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#110000'; ctx.fillRect(0,0,256,128);
+  ctx.strokeStyle='#440000'; ctx.lineWidth=2; ctx.strokeRect(4,4,248,120);
+  ctx.fillStyle='#883300'; ctx.font='bold 22px Courier New'; ctx.textAlign='center';
+  ctx.fillText(item.name, 128, 50);
+  ctx.fillStyle='#332200'; ctx.font='14px Courier New';
+  ctx.fillText(item.model, 128, 90);
+  const plane=new THREE.Mesh(
+    new THREE.PlaneGeometry(0.9,0.45),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),side:THREE.DoubleSide})
+  );
+  plane.position.y=0.5; plane.userData.billboard=true;
+  g.add(plane);
 }
 
-function showDiary(idx) {
-  const ds = document.getElementById('diary-screen');
-  const di = document.getElementById('diary-img');
-  di.src = `https://raw.githubusercontent.com/gp01002/room01/main/diary_0${(idx%9)+1}.png`;
-  ds.classList.add('show');
-  if(document.pointerLockElement) document.exitPointerLock();
+function removeItem(){
+  if(currentItem){ scene.remove(currentItem); currentItem=null; }
+  const h=document.getElementById('item-hint');
+  if(h) h.classList.remove('show');
 }
 
-function closeDiary() {
+// ══════════════════════════════════════════════════════════════════
+//  ACTIVATE
+// ══════════════════════════════════════════════════════════════════
+function activateSwitch(){
+  if(!switchGroup||switchGroup.userData.activated) return;
+  switchGroup.userData.activated=true;
+
+  // 暗紅殘影
+  if(switchGroup.userData.light){
+    switchGroup.userData.light.color.setHex(0x330000);
+    switchGroup.userData.light.intensity=0.1;
+  }
+  switchGroup.traverse(ch=>{
+    if(ch.isMesh){
+      const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+      ms.forEach(m=>{ if(m.emissive){m.emissive.setHex(0x1a0000);m.emissiveIntensity=0.15;} });
+    }
+  });
+
+  // 閃光
+  const f=document.getElementById('flash');
+  f.style.transition='none'; f.style.opacity='0.5';
+  setTimeout(()=>{f.style.transition='opacity .5s'; f.style.opacity='0';},80);
+  playSound();
+
+  // 選物品
+  const avail=ITEMS.map((_,i)=>i).filter(i=>!usedItemIdxs.includes(i));
+  const idx=avail.length ? avail[Math.floor(Math.random()*avail.length)] : Math.floor(Math.random()*ITEMS.length);
+  usedItemIdxs.push(idx);
+  if(usedItemIdxs.length>=ITEMS.length) usedItemIdxs=[];
+
+  // 燈亮 + 物品出現
+  setLights(true);
+  spawnItem(idx);
+
+  // 5秒後：關燈 → 移除物品 → 顯示日記
+  if(lightTimer) clearTimeout(lightTimer);
+  lightTimer=setTimeout(()=>{
+    setLights(false);
+    removeItem();
+    setTimeout(()=>showDiary(idx), 500);
+  }, 5000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  DIARY
+// ══════════════════════════════════════════════════════════════════
+function showDiary(idx){
+  if(isLocked) document.exitPointerLock();
+  const imgName=DIARY_IMGS[idx%DIARY_IMGS.length];
+  const el=document.getElementById('diary-img');
+  el.src=DIARY_BASE+imgName;
+  el.onerror=()=>closeDiary();
+  document.getElementById('diary-screen').classList.add('show');
+}
+
+function closeDiary(){
   document.getElementById('diary-screen').classList.remove('show');
-  spawnSwitch();
+  setTimeout(()=>spawnSwitch(), 400);
   if(!xrSession) renderer.domElement.requestPointerLock();
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  VR 與 渲染
+//  VR — Meta Quest
 // ══════════════════════════════════════════════════════════════════
-async function checkVR() {
-  const btn = document.getElementById('vr-btn');
-  if(navigator.xr) {
-    const supported = await navigator.xr.isSessionSupported('immersive-vr');
-    if(supported) {
-      btn.textContent = "進入 VR 模式";
+async function checkVR(){
+  const btn=document.getElementById('vr-btn');
+  if(!navigator.xr){ btn.textContent='瀏 覽 器 不 支 援 VR'; return; }
+  try{
+    const ok=await navigator.xr.isSessionSupported('immersive-vr');
+    if(ok){
+      btn.textContent='進 入 VR（Meta Quest）';
       btn.classList.remove('dim');
-      btn.onclick = enterVR;
+      btn.onclick=enterVR;
+    } else {
+      btn.textContent='裝 置 不 支 援 VR';
     }
-  }
+  }catch(e){ btn.textContent='VR 不 可 用'; }
 }
 
-async function enterVR() {
-  xrSession = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] });
-  renderer.xr.setSession(xrSession);
-  document.getElementById('start-screen').style.display = 'none';
-  gameActive = true;
+async function enterVR(){
+  try{
+    const session=await navigator.xr.requestSession('immersive-vr',{
+      requiredFeatures:['local-floor'],
+      optionalFeatures:['bounded-floor','hand-tracking']
+    });
+    xrSession=session;
+    renderer.xr.setSession(session);
+    session.addEventListener('end',()=>{
+      xrSession=null;
+      renderer.xr.enabled=false;
+    });
+    document.getElementById('start-screen').style.display='none';
+    gameActive=true;
+  }catch(e){ console.error('VR error',e); }
 }
 
-function render() {
-  const dt = clock.getDelta();
-  
-  if(gameActive && !xrSession && isLocked) {
-    const speed = 3 * dt;
-    if(keys['KeyW']) camera.position.addScaledVector(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), speed);
-    if(keys['KeyS']) camera.position.addScaledVector(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), -speed);
-    if(keys['KeyA']) camera.position.addScaledVector(new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), -speed);
-    if(keys['KeyD']) camera.position.addScaledVector(new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), speed);
+// ══════════════════════════════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════════════════════════════
+function onMouseMove(e){
+  if(!isLocked||!gameActive) return;
+  yaw -= e.movementX*.0018;
+  pitch -= e.movementY*.0018;
+  pitch=Math.max(-Math.PI/2.1, Math.min(Math.PI/2.1, pitch));
+  camera.rotation.y=yaw; camera.rotation.x=pitch;
+}
+
+function onClick(){
+  if(!gameActive) return;
+  if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
+  if(document.getElementById('diary-screen').classList.contains('show')){ closeDiary(); return; }
+  const sw=getAimedSwitch(); if(sw) activateSwitch();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════════
+function render(){
+  try{
+  const dt=clock.getDelta(); t+=dt;
+
+  // 天花板微閃（暗場）
+  if(!sceneBright && ceilingLight)
+    ceilingLight.intensity=0.50+Math.sin(t*1.1)*.07+Math.sin(t*4.3)*.03;
+
+  // 桌機移動
+  if(gameActive && isLocked && !xrSession){
+    const spd=3*dt;
+    const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+    if(keys['KeyW']||keys['ArrowUp'])    camera.position.addScaledVector(fwd,spd);
+    if(keys['KeyS']||keys['ArrowDown'])  camera.position.addScaledVector(fwd,-spd);
+    if(keys['KeyA']||keys['ArrowLeft'])  camera.position.addScaledVector(right,-spd);
+    if(keys['KeyD']||keys['ArrowRight']) camera.position.addScaledVector(right,spd);
+    // 頭部搖晃
+    const moving=keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD'];
+    camera.position.y = moving ? Math.sin(t*7)*0.035 : 0;
   }
 
-  // VR 射線互動 (右手 Trigger)
-  if(xrSession) {
-    const session = renderer.xr.getSession();
-    for(const source of session.inputSources) {
-      if(source.gamepad && source.gamepad.buttons[0].pressed) {
-        checkInteraction(); // VR 模式下檢測
+  // 移動邊界
+  camera.position.x=Math.max(-5.2, Math.min(2.5, camera.position.x));
+  camera.position.z=Math.max(-2.8, Math.min(4.5, camera.position.z));
+
+  // VR 搖桿移動 + 準星互動
+  if(gameActive && xrSession){
+    const session=renderer.xr.getSession();
+    if(session){
+      for(const src of session.inputSources){
+        if(!src.gamepad) continue;
+        // 左手：搖桿移動
+        if(src.handedness==='left'){
+          const ax=src.gamepad.axes, spd=2.5*dt;
+          if(Math.abs(ax[2])>.15||Math.abs(ax[3])>.15){
+            const cam=renderer.xr.getCamera(camera);
+            const dir=new THREE.Vector3(); cam.getWorldDirection(dir); dir.y=0; dir.normalize();
+            const rt=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0));
+            camera.position.addScaledVector(dir,-ax[3]*spd);
+            camera.position.addScaledVector(rt, ax[2]*spd);
+          }
+        }
+        // 右手：Trigger(0) 或 A鍵(4) 啟動開關
+        if(src.handedness==='right'){
+          const btn0=src.gamepad.buttons[0];
+          const btn4=src.gamepad.buttons[4];
+          const pressed=(btn0&&btn0.pressed)||(btn4&&btn4.pressed);
+          if(pressed && !src.gamepad._wasPressed){
+            const sw=getAimedSwitch(); if(sw) activateSwitch();
+          }
+          src.gamepad._wasPressed=pressed;
+        }
       }
     }
+    // 凝視計時（準星對準 1.5 秒自動觸發）
+    const sw=getAimedSwitch();
+    if(sw){ vrGazeTimer+=dt; if(vrGazeTimer>=1.5){vrGazeTimer=0;activateSwitch();} }
+    else vrGazeTimer=0;
+    // 更新 VR 準星
+    if(vrReticle){
+      const cam=renderer.xr.getCamera(camera);
+      const dir=new THREE.Vector3(); cam.getWorldDirection(dir);
+      vrReticle.position.copy(cam.position).addScaledVector(dir,1.8);
+      vrReticle.lookAt(cam.position);
+      const p=vrGazeTimer/1.5;
+      vrReticle.children.forEach(m=>m.material.color.setRGB(1,1-p*.85,1-p*.85));
+    }
   }
 
-  // 準星與提示
-  RC.setFromCamera({x:0, y:0}, camera);
-  const hits = RC.intersectObjects(scene.children, true);
-  const isAiming = hits.some(h => h.object.name === "switch_hitbox");
-  document.getElementById('crosshair').className = isAiming ? 'aimed' : '';
-  document.getElementById('aim-hint').className = isAiming ? 'show' : '';
+  // 開關脈衝光
+  if(switchGroup && !switchGroup.userData.activated && switchGroup.userData.light)
+    switchGroup.userData.light.intensity=0.5+Math.sin(t*2.2)*.25;
+
+  // Billboard
+  if(currentItem){
+    currentItem.children.forEach(ch=>{
+      if(ch.userData && ch.userData.billboard) ch.lookAt(camera.position);
+    });
+  }
+
+  // 靠近物品提示
+  if(sceneBright && currentItem){
+    const d=camera.position.distanceTo(currentItem.position);
+    const hintEl=document.getElementById('item-hint');
+    const prox=currentItem.children.find(c=>c.name==='itemProx');
+    if(d<2.5 && prox){
+      hintEl.innerHTML='<b>'+prox.userData.name+'</b><span>'+prox.userData.model+'</span>';
+      hintEl.classList.add('show');
+    } else {
+      hintEl.classList.remove('show');
+    }
+  } else {
+    document.getElementById('item-hint').classList.remove('show');
+  }
+
+  // 準星
+  if(gameActive){
+    const aimed=!!getAimedSwitch();
+    document.getElementById('crosshair').className=aimed?'aimed':'';
+    document.getElementById('aim-hint').className=aimed?'show':'';
+  }
 
   renderer.render(scene, camera);
+  }catch(err){ console.error('render:',err); }
 }
 
-// 工具函數
-function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-function onMouseMove(e) { if(!isLocked) return; yaw -= e.movementX * 0.002; pitch -= e.movementY * 0.002; pitch = Math.max(-1.5, Math.min(1.5, pitch)); camera.rotation.order = 'YXZ'; camera.rotation.y = yaw; camera.rotation.x = pitch; }
-function startGame() { document.getElementById('start-screen').style.display = 'none'; renderer.domElement.requestPointerLock(); gameActive = true; }
-function flashEffect() { const f = document.getElementById('flash'); f.style.opacity = '1'; setTimeout(() => f.style.opacity = '0', 100); }
-document.addEventListener('pointerlockchange', () => isLocked = document.pointerLockElement === renderer.domElement);
+// ══════════════════════════════════════════════════════════════════
+//  SOUND
+// ══════════════════════════════════════════════════════════════════
+function playSound(){
+  try{
+    const ac=new(window.AudioContext||window.webkitAudioContext)();
+    [[55,.07,'sawtooth',1.2,28],[800,.02,'sine',.3,150]].forEach(([f,g,tp,d,f2])=>{
+      const o=ac.createOscillator(),gn=ac.createGain();
+      o.type=tp; o.frequency.setValueAtTime(f,ac.currentTime);
+      o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+d);
+      gn.gain.setValueAtTime(g,ac.currentTime);
+      gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
+      o.connect(gn); gn.connect(ac.destination);
+      o.start(); o.stop(ac.currentTime+d);
+    });
+  }catch(e){}
+}
 
-init();
+// ══════════════════════════════════════════════════════════════════
+//  GAME FLOW
+// ══════════════════════════════════════════════════════════════════
+function startGame(){
+  document.getElementById('start-screen').style.display='none';
+  gameActive=true;
+  renderer.domElement.requestPointerLock();
+}
+
+initThree();
 </script>
 </body>
 </html>
