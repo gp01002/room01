@@ -8,12 +8,20 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;overflow:hidden;font-family:'Courier New',monospace}
 canvas{display:block}
-#start-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
-#start-title{color:#8b0000;font-size:2.2rem;letter-spacing:14px;text-shadow:0 0 40px #f00;animation:flick 3s infinite;margin-bottom:8px}
-#start-sub{color:#252525;font-size:0.68rem;letter-spacing:6px;margin-bottom:50px}
-.btn{padding:12px 42px;background:transparent;border:1px solid #550000;color:#550000;font-size:0.72rem;letter-spacing:5px;cursor:pointer;transition:all .3s;margin:5px;font-family:'Courier New',monospace}
-.btn:hover{background:#55000018;box-shadow:0 0 18px #55000055;color:#c00;border-color:#c00}
-.btn.dim{border-color:#1a1a1a;color:#1a1a1a;font-size:0.6rem}
+#start-screen{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:0}
+/* 開始畫面：大圖 + 兩個小圖並排 */
+.start-wrap{display:flex;flex-direction:column;align-items:center;width:100%;max-width:600px;padding:0 24px;gap:16px}
+.start-big{width:100%;cursor:default}
+.start-big img{width:100%;height:auto;display:block;object-fit:contain}
+.start-row{display:flex;gap:16px;width:100%}
+.start-small{flex:1;cursor:pointer;border:none;background:none;padding:0;transition:transform .2s,opacity .2s}
+.start-small:hover{transform:scale(1.04);opacity:.85}
+.start-small img{width:100%;height:auto;display:block;object-fit:contain}
+.start-small.dim-btn{opacity:.35;cursor:default}
+.start-small.dim-btn:hover{transform:none;opacity:.35}
+.btn{display:none}
+#start-title{display:none}
+#start-sub{display:none}
 #hud{position:fixed;top:0;left:0;right:0;padding:14px 22px;background:linear-gradient(to bottom,rgba(0,0,0,.85),transparent);display:flex;justify-content:space-between;pointer-events:none;z-index:10;color:#440000;font-size:0.65rem;letter-spacing:4px}
 #crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;width:20px;height:20px}
 #ch-h,#ch-v{position:absolute;background:rgba(255,255,255,.38)}
@@ -50,10 +58,30 @@ canvas{display:block}
 </div>
 
 <div id="start-screen">
-  <div id="start-title">恐 怖 房 間</div>
-  <div id="start-sub">找 到 牆 上 的 開 關</div>
-  <button class="btn" onclick="startGame()">進 入 房 間</button>
-  <button class="btn dim" id="vr-btn">VR 偵 測 中...</button>
+  <!-- 隱藏按鈕供 JS 使用 -->
+  <button class="btn" id="_startBtn" onclick="startGame()" style="display:none"></button>
+  <button class="btn dim" id="vr-btn" style="display:none"></button>
+
+  <!-- 三張圖片版面（無框，點擊觸發對應功能）-->
+  <div class="start-img-wrap">
+    <!-- 圖1：標題圖（裝飾用，不可點）-->
+    <div style="width:100%">
+      <img id="img-title"
+           src="https://raw.githubusercontent.com/gp01002/room01/main/start_title.png"
+           onerror="this.style.display='none'"
+           style="width:100%;display:block;object-fit:contain">
+    </div>
+    <!-- 圖2：進入房間（點擊進入桌機/手機模式）-->
+    <button class="start-img-btn" onclick="startGame()" title="進入房間">
+      <img src="https://raw.githubusercontent.com/gp01002/room01/main/start_enter.png"
+           onerror="this.outerHTML='<div onclick=startGame() style=cursor:pointer;color:#550000;font-family:Courier New;letter-spacing:6px;font-size:.8rem;padding:18px>進 入 房 間 →</div>'">
+    </button>
+    <!-- 圖3：VR 模式（點擊進入 VR）-->
+    <button class="start-img-btn" id="vr-img-btn" onclick="enterVRFromBtn()" title="進入VR" style="opacity:.4">
+      <img src="https://raw.githubusercontent.com/gp01002/room01/main/start_vr.png"
+           onerror="this.outerHTML='<div style=cursor:pointer;color:#1a1a1a;font-family:Courier New;letter-spacing:6px;font-size:.7rem;padding:14px>VR 偵 測 中...</div>'" id="vr-img-inner">
+    </button>
+  </div>
 </div>
 
 <div id="hud">
@@ -653,18 +681,26 @@ function closeDiary(){
 //  VR — Meta Quest
 // ══════════════════════════════════════════════════════════════════
 async function checkVR(){
-  const btn=document.getElementById('vr-btn');
-  if(!navigator.xr){ btn.textContent='瀏 覽 器 不 支 援 VR'; return; }
+  const vrBtn=document.getElementById('vr-img-btn');
+  if(!navigator.xr){ return; }
   try{
     const ok=await navigator.xr.isSessionSupported('immersive-vr');
-    if(ok){
-      btn.textContent='進 入 VR（Meta Quest）';
-      btn.classList.remove('dim');
-      btn.onclick=enterVR;
-    } else {
-      btn.textContent='裝 置 不 支 援 VR';
+    if(ok && vrBtn){
+      vrBtn.style.opacity='1';
+      vrBtn.title='進入 VR（Meta Quest）';
     }
-  }catch(e){ btn.textContent='VR 不 可 用'; }
+  }catch(e){}
+}
+
+function enterVRFromBtn(){
+  // 如果 VR 可用就進 VR，否則一般進入
+  if(navigator.xr){
+    navigator.xr.isSessionSupported('immersive-vr').then(ok=>{
+      if(ok) enterVR(); else startGame();
+    }).catch(()=>startGame());
+  } else {
+    startGame();
+  }
 }
 
 async function enterVR(){
@@ -675,9 +711,11 @@ async function enterVR(){
     });
     xrSession=session;
     renderer.xr.setSession(session);
+    // 調整 VR 高度：下移 cameraRig 讓玩家站在地板上
+    cameraRig.position.y=-1.2;
     session.addEventListener('end',()=>{
       xrSession=null;
-      renderer.xr.enabled=false;
+      cameraRig.position.y=0;
     });
     document.getElementById('start-screen').style.display='none';
     gameActive=true;
