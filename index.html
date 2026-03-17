@@ -99,6 +99,7 @@ canvas { display:block; }
 #hint-bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); color:#1a1a1a; font-size:0.52rem; letter-spacing:3px; pointer-events:none; z-index:10; }
 
 #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
+#diary-screen.show { display:flex; }
 
 #item-hint {
   position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
@@ -185,6 +186,19 @@ canvas { display:block; }
   <div id="reveal-item-name"></div>
   <div id="reveal-model-hint"></div>
   <button id="close-btn" onclick="closeReveal()">繼 續 探 索</button>
+</div>
+
+<!-- 日記頁面 -->
+<div id="diary-screen" style="
+  position:fixed;inset:0;background:rgba(0,0,0,0.92);
+  display:none;align-items:center;justify-content:center;z-index:55;flex-direction:column;">
+  <img id="diary-img" src="" style="
+    max-width:85vw;max-height:78vh;
+    border:1px solid #2a1800;box-shadow:0 0 40px rgba(60,20,0,0.8);
+    image-rendering:pixelated;" alt="diary">
+  <div style="margin-top:16px;color:#442200;font-size:0.6rem;letter-spacing:5px;animation:flick 3s infinite">
+    — 點 擊 繼 續 —
+  </div>
 </div>
 
 <!-- BLACKOUT -->
@@ -559,8 +573,8 @@ const ITEMS = [
 // ══════════════════════════════════════════════════════════════════
 let scene, camera, renderer, clock;
 let yaw=0, pitch=0, isLocked=false, gameActive=false;
-let switchGroup=null;   // 目前的開關（一次只有一個）
-let currentItem=null;   // 目前顯示的物品（一次只有一個，關燈就消失）
+let switchGroup=null;
+let currentItem=null;
 let sceneBright=false;
 let lightTimer=null;
 let usedItemIdxs=[];
@@ -568,6 +582,20 @@ let ceilingLight=null;
 let t=0;
 let skipRequested=false;
 let powerGltfCache=null;
+
+// VR
+let xrSession=null, xrRefSpace=null;
+let vrControllers=[];
+let vrGazeTimer=0;  // 凝視計時（準星對準開關）
+let vrGazeSw=null;
+
+// 日記
+const DIARY_IMGS=[
+  'diary_01.png','diary_02.png','diary_03.png','diary_04.png','diary_05.png',
+  'diary_06.png','diary_07.png','diary_08.png','diary_09.png','diary_10.png',
+];
+const DIARY_BASE='https://raw.githubusercontent.com/gp01002/room01/main/';
+let diaryQueue=[];  // 待顯示的日記索引
 
 const RC = new THREE.Raycaster(); RC.far=12;
 const keys={};
@@ -601,6 +629,12 @@ function initThree(){
   document.addEventListener('click',onClick);
   document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; if(isLocked&&gameActive)console.log('Pointer locked'); });
   setupTouch();
+
+  // 日記點擊
+  setTimeout(()=>{
+    const ds=document.getElementById('diary-screen');
+    if(ds) ds.addEventListener('click', closeDiary);
+  }, 100);
 
   loadRoomGLB()
     .then(()=> loadPowerGLB())
@@ -759,79 +793,73 @@ function spawnSwitch(){
   const color=SWITCH_COLORS[Math.floor(Math.random()*SWITCH_COLORS.length)];
   const g=new THREE.Group();
 
-  if(powerGltfCache){
-    const model=powerGltfCache.scene.clone(true);
-
-    // 旋轉讓模型直立貼牆（原始躺平，Y軸是厚度）
-    model.rotation.x = Math.PI / 2;
-    model.updateMatrixWorld(true);
-
-    // 縮放：面板約 0.12 units（實際開關大小）
-    const bbox=new THREE.Box3().setFromObject(model);
-    const bsize=bbox.getSize(new THREE.Vector3());
-    const sc = 0.12 / Math.max(bsize.x, bsize.y);
-    model.scale.setScalar(sc);
-    model.updateMatrixWorld(true);
-
-    // 置中 + 背面貼牆（Z=0 是牆面，模型往 +Z 突出）
-    const bbox2=new THREE.Box3().setFromObject(model);
-    const bc=bbox2.getCenter(new THREE.Vector3());
-    model.position.set(-bc.x, -bc.y, -bbox2.min.z);
-    model.updateMatrixWorld(true);
-
-    // 發光 + 雙面
-    model.traverse(ch=>{
-      if(ch.isMesh){
-        const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-        ms.forEach(mat=>{
-          mat.side=THREE.DoubleSide;
-          mat.emissive=new THREE.Color(color);
-          mat.emissiveIntensity=0.5;
-          mat.needsUpdate=true;
-        });
-      }
-    });
-    g.add(model);
-
-  } else {
-    // Fallback: 扁平方塊，像真實開關
-    const sw=new THREE.Mesh(
-      new THREE.BoxGeometry(0.10,0.14,0.02),
-      new THREE.MeshBasicMaterial({color:0xdddddd})
-    );
-    sw.position.z=0.01;
-    g.add(sw);
-    // 底板（開關面板）
-    const plate=new THREE.Mesh(
-      new THREE.BoxGeometry(0.16,0.20,0.008),
-      new THREE.MeshBasicMaterial({color:0xffffff})
-    );
-    plate.position.z=0.001;
-    g.add(plate);
-  }
-
-  // 微弱點光源（只照亮周圍一點點）
-  const light=new THREE.PointLight(color, 0.8, 1.5, 2);
-  light.position.set(0, 0, 0.1);
+  // 點光源（微弱，只標示位置）
+  const light=new THREE.PointLight(color, 0.6, 1.8, 2);
+  light.position.set(0, 0, 0.08);
   g.add(light);
 
-  // 隱形 hitbox（足夠大讓玩家能點到）
+  // 隱形 hitbox
   const hitbox=new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.5, 0.4),
+    new THREE.BoxGeometry(0.5, 0.5, 0.3),
     new THREE.MeshBasicMaterial({visible:false})
   );
   hitbox.name='hit';
   g.add(hitbox);
 
-  // 貼牆放置
+  // 貼牆定位 → 先設定 group
   g.position.copy(def.pos);
   g.rotation.y = def.rotY * Math.PI/180;
-
   g.userData={activated:false, light, label:def.label};
-  light.intensity=0.8;
   scene.add(g);
   switchGroup=g;
-  console.log('Switch:', def.label, def.pos.x.toFixed(2), def.pos.y.toFixed(2), def.pos.z.toFixed(2));
+
+  if(powerGltfCache){
+    const model=powerGltfCache.scene.clone(true);
+
+    // 精確旋轉：原始 Y=厚度(0~-16.6), Z=高度(0.7~52.7)
+    // rotation.x = +90°：Z→Y（高度變直立），Y→-Z（厚度突出牆外）✓
+    model.rotation.x = Math.PI / 2;
+    const sc = 0.12 / 52;   // 面板 ≈ 0.12 units（約4cm）
+    model.scale.setScalar(sc);
+
+    // 旋轉後：
+    //   X center = (-21.8+30.2)/2 * sc = -0.0134  → position.x = +0.0134
+    //   Y center = (0.7+52.7)/2   * sc = +0.0616  → position.y = -0.0616
+    //   Z range  = 0 ~ 16.6*sc = 0~0.038          → position.z = 0 (背面在Z=0貼牆)
+    model.position.set(0.013, -0.062, 0.001);
+
+    model.traverse(ch=>{
+      if(!ch.isMesh) return;
+      const ms=Array.isArray(ch.material)?ch.material:[ch.material];
+      ms.forEach(mat=>{
+        mat.side=THREE.DoubleSide;
+        mat.emissive=new THREE.Color(color);
+        mat.emissiveIntensity=0.6;
+        mat.needsUpdate=true;
+      });
+    });
+    g.add(model);
+    console.log('Switch GLB loaded:', def.label);
+
+  } else {
+    // Fallback：扁平面板（XY 平面，貼牆）
+    const plate=new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.10, 0.015),
+      new THREE.MeshBasicMaterial({color:0xeeeeee})
+    );
+    plate.position.z=0.008;
+    g.add(plate);
+    const btn=new THREE.Mesh(
+      new THREE.BoxGeometry(0.05, 0.07, 0.02),
+      new THREE.MeshBasicMaterial({color})
+    );
+    btn.position.z=0.018;
+    g.add(btn);
+    console.log('Switch fallback:', def.label);
+  }
+
+  light.intensity=0.6;
+  console.log('Switch placed:', def.label, def.pos.x.toFixed(2), def.pos.y.toFixed(2), def.pos.z.toFixed(2));
 }
 
 // 在房間裡放一個物品（開燈時出現，關燈時由 removeCurrentItem 移除）
@@ -929,6 +957,8 @@ function buildAtmosphere(){
   window.fill1=new THREE.PointLight(0x3a2010,0.2,12,2); fill1.position.set(-4,1.5,-5); scene.add(fill1);
   window.fill2=new THREE.PointLight(0x3a2010,0.2,12,2); fill2.position.set( 4,1.5, 4); scene.add(fill2);
 
+  buildVRReticle();
+
   // Dust particles
   const pa=new Float32Array(160*3);
   for(let i=0;i<160;i++){pa[i*3]=(Math.random()-.5)*9;pa[i*3+1]=(Math.random()-.5)*4;pa[i*3+2]=(Math.random()-.5)*13;}
@@ -948,8 +978,8 @@ function render(){
 
   // (switch pulse moved above)
 
-  // WASD
-  if(gameActive&&isLocked){
+  // 桌機 WASD 移動
+  if(gameActive&&isLocked&&!xrSession){
     const spd=3.5*dt;
     const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
@@ -957,6 +987,54 @@ function render(){
     if(keys['KeyS']||keys['ArrowDown']) camera.position.addScaledVector(fwd,-spd);
     if(keys['KeyA']||keys['ArrowLeft']) camera.position.addScaledVector(right,-spd);
     if(keys['KeyD']||keys['ArrowRight'])camera.position.addScaledVector(right,spd);
+  }
+
+  // VR 移動（左搖桿）
+  if(gameActive && xrSession){
+    const session=renderer.xr.getSession();
+    if(session){
+      for(const src of session.inputSources){
+        if(!src.gamepad) continue;
+        const axes=src.gamepad.axes;
+        // 左手控制器 handedness=left：axes[2]=左右, axes[3]=前後
+        if(src.handedness==='left' && (Math.abs(axes[2])>0.15||Math.abs(axes[3])>0.15)){
+          const cam=renderer.xr.getCamera(camera);
+          const dir=new THREE.Vector3();
+          cam.getWorldDirection(dir); dir.y=0; dir.normalize();
+          const right2=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0));
+          const spd=2.5*dt;
+          camera.position.addScaledVector(dir,  -axes[3]*spd);
+          camera.position.addScaledVector(right2, axes[2]*spd);
+        }
+        // 右手A鍵（buttons[4]）= 點擊開關
+        if(src.handedness==='right'){
+          const btnA=src.gamepad.buttons[4];
+          if(btnA && btnA.pressed && !src.gamepad._aWasPressed){
+            const sw=getAimedSwitch();
+            if(sw) activateSwitch(sw);
+          }
+          if(src.gamepad.buttons[4]) src.gamepad._aWasPressed=src.gamepad.buttons[4].pressed;
+        }
+      }
+    }
+
+    // VR 凝視：準星對準開關 1.5 秒自動觸發
+    const sw=getAimedSwitch();
+    if(sw){
+      vrGazeTimer+=dt;
+      if(vrGazeTimer>=1.5){ vrGazeTimer=0; activateSwitch(sw); }
+    } else { vrGazeTimer=0; }
+
+    // 更新 VR 準星位置（在相機前方 2m）
+    if(vrReticle){
+      const cam=renderer.xr.getCamera(camera);
+      const dir=new THREE.Vector3(); cam.getWorldDirection(dir);
+      vrReticle.position.copy(cam.position).addScaledVector(dir,2.0);
+      vrReticle.lookAt(cam.position);
+      // 凝視進度變紅
+      const prog=vrGazeTimer/1.5;
+      vrReticle.children.forEach(m=>m.material.color.setRGB(1,1-prog*0.8,1-prog*0.8));
+    }
   }
   // Joystick
   if(gameActive&&(joy.x||joy.y)){
@@ -1066,12 +1144,13 @@ function activateSwitch(sw){
   brightenScene();
   spawnItemInRoom(idx);
 
-  // 5秒後：關燈 → 移除物品 → 生成新開關
+  // 5秒後：關燈 → 移除物品 → 顯示日記
   if(lightTimer) clearTimeout(lightTimer);
   lightTimer=setTimeout(()=>{
     darkenScene();
-    removeCurrentItem();   // ← 關燈就移除物品
-    setTimeout(()=>spawnSwitch(), 800);
+    removeCurrentItem();
+    // 顯示對應日記（0~9 對應 diary_01~10）
+    setTimeout(()=>showDiary(idx), 600);
   }, 5000);
 }
 
@@ -1101,9 +1180,27 @@ function removeCurrentItem(){
 // ══════════════════════════════════════════════════════════════════
 //  REVEAL ITEM
 // ══════════════════════════════════════════════════════════════════
-// （物品提示改為靠近顯示，不再全螢幕彈出）
-// 保留空函式防止其他地方引用報錯
+// （物品提示改為靠近顯示）
 function closeReveal(){ document.getElementById('reveal-screen').classList.remove('show'); }
+
+// ══ 日記系統 ══════════════════════════════════════════════════
+function showDiary(itemIdx){
+  const imgName = DIARY_IMGS[itemIdx % DIARY_IMGS.length];
+  const imgEl = document.getElementById('diary-img');
+  const screen = document.getElementById('diary-screen');
+  imgEl.src = DIARY_BASE + imgName;
+  imgEl.onerror = ()=>{ imgEl.src=''; closeDiary(); }; // 圖片不存在就跳過
+  screen.classList.add('show');
+  if(isLocked) document.exitPointerLock();
+}
+
+function closeDiary(){
+  document.getElementById('diary-screen').classList.remove('show');
+  setTimeout(()=>spawnSwitch(), 400);
+  if(!xrSession) renderer.domElement.requestPointerLock();
+}
+
+
 
 // 倒數移除：改由 activateSwitch 內的 setTimeout 處理
 
@@ -1132,11 +1229,59 @@ function flashScreen(){
 // ══════════════════════════════════════════════════════════════════
 function checkVR(){
   const btn=document.getElementById('vr-btn');
-  if(!navigator.xr){btn.textContent='瀏 覽 器 不 支 援 VR';return;}
+  if(!navigator.xr){ btn.textContent='瀏 覽 器 不 支 援 VR'; return; }
   navigator.xr.isSessionSupported('immersive-vr').then(ok=>{
-    if(ok){btn.textContent='進 入 VR 模 式';btn.classList.remove('dim');btn.onclick=async()=>{renderer.xr.enabled=true;renderer.xr.setSession(await navigator.xr.requestSession('immersive-vr'));};} 
-    else btn.textContent='此 裝 置 不 支 援 VR';
+    if(ok){
+      btn.textContent='進 入 VR（Meta Quest）';
+      btn.classList.remove('dim');
+      btn.onclick=()=>enterVR();
+    } else {
+      btn.textContent='裝 置 不 支 援 VR';
+    }
   });
+}
+
+async function enterVR(){
+  try{
+    renderer.xr.enabled=true;
+    // 申請 local-floor 讓 Quest 能室內走動
+    const session=await navigator.xr.requestSession('immersive-vr',{
+      requiredFeatures:['local-floor'],
+      optionalFeatures:['bounded-floor','hand-tracking']
+    });
+    xrSession=session;
+    renderer.xr.setSession(session);
+
+    // 建立控制器（左0右1）
+    for(let i=0;i<2;i++){
+      const ctrl=renderer.xr.getController(i);
+      ctrl.userData.index=i;
+      scene.add(ctrl);
+      vrControllers.push(ctrl);
+    }
+
+    session.addEventListener('end',()=>{
+      xrSession=null; vrControllers=[];
+      renderer.xr.enabled=false;
+      document.getElementById('start-screen').style.display='flex';
+      gameActive=false;
+    });
+
+    // 進 VR 後隱藏開始畫面
+    document.getElementById('start-screen').style.display='none';
+    gameActive=true;
+  }catch(e){ console.error('VR error',e); }
+}
+
+// VR 凝視準星（3D 十字，跟著相機方向）
+let vrReticle=null;
+function buildVRReticle(){
+  const mat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.8});
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.02,0.002,0.002),mat));
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.002,0.02,0.002),mat));
+  vrReticle=g;
+  scene.add(vrReticle);
 }
 
 // ══════════════════════════════════════════════════════════════════
