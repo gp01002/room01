@@ -19,17 +19,18 @@ canvas{display:block}
 .start-big img{width:100%;height:auto;display:block;object-fit:contain;background:transparent}
 .start-row{display:flex;gap:24px;width:100%;justify-content:center;align-items:center}
 .start-small{
-  flex:0 0 42%;cursor:pointer;
+  flex:0 0 30%;cursor:pointer;
   border:none;background:transparent;padding:0;
   transition:transform .22s,filter .22s
 }
-.start-small:hover{transform:scale(1.06);filter:brightness(1.15)}
+.start-small:hover{transform:scale(1.06);filter:brightness(1.2)}
 .start-small img{
   width:100%;height:auto;display:block;
-  object-fit:contain;background:transparent;mix-blend-mode:normal
+  object-fit:contain;
+  mix-blend-mode:screen;  /* 讓白色背景融入黑底，白框消失 */
 }
-.start-small.dim-btn{opacity:.32;cursor:default;filter:grayscale(.5)}
-.start-small.dim-btn:hover{transform:none;filter:grayscale(.5)}
+.start-small.dim-btn{opacity:.32;cursor:default;filter:grayscale(.6)}
+.start-small.dim-btn:hover{transform:none;filter:grayscale(.6)}
 .btn{display:none}
 #start-title{display:none}
 #start-sub{display:none}
