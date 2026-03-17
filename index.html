@@ -589,7 +589,7 @@ function skipLoader(){ skipRequested=true; }
 function initThree(){
   scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x050302,0.025);
   camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,0.05,60);
-  camera.position.set(0,0,4); camera.rotation.order='YXZ';
+  camera.position.set(0,0,3); camera.rotation.order='YXZ';
   renderer=new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
@@ -617,7 +617,7 @@ function initThree(){
 //  GLB LOADER
 // ══════════════════════════════════════════════════════════════════
 const ROOM_URL='https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
-const POWER_URL='https://raw.githubusercontent.com/gp01002/room01/main/power.glb';
+const POWER_URL='https://raw.githubusercontent.com/gp01002/room01/main/dirty_light_switch.glb';
 
 function loadRoomGLB(){
   return new Promise(resolve=>{
@@ -644,7 +644,7 @@ function placeRoom(gltf){
   m.scale.setScalar(s); box.setFromObject(m);
   const c=box.getCenter(new THREE.Vector3());
   m.position.set(-c.x,-box.min.y-2.5,-c.z);
-  m.traverse(ch=>{ if(ch.isMesh){ ch.receiveShadow=true; const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ mat.roughness=0.9; if(mat.color)mat.color.multiplyScalar(0.5); }); }});
+  m.traverse(ch=>{ if(ch.isMesh){ ch.receiveShadow=true; const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.roughness!==undefined)mat.roughness=0.85; if(mat.color)mat.color.multiplyScalar(0.7); }); }});
   scene.add(m);
   buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
 }
@@ -710,48 +710,47 @@ function buildCabinet(x,fy,z){
 // ══════════════════════════════════════════════════════════════════
 //  GLOWING CUBE SWITCHES  ← 3 switches, each a coloured glowing cube
 // ══════════════════════════════════════════════════════════════════
-// 開關可能出現的位置（隨機輪換）
-const SWITCH_POSITIONS=[
-  new THREE.Vector3(-2.5, 0.7, -1.0),
-  new THREE.Vector3( 2.5, 0.7, -1.0),
-  new THREE.Vector3( 0.0, 0.7, -4.5),
-  new THREE.Vector3(-1.5, 0.7,  2.5),
-  new THREE.Vector3( 3.0, 0.7, -3.0),
-  new THREE.Vector3(-3.0, 0.7,  1.0),
+// 開關貼牆位置（依房間 GLB 實際牆面規劃）
+// { pos, rotY(度), label }
+const SWITCH_DEFS_WALL=[
+  { pos: new THREE.Vector3( 0.0, -0.6, -4.6), rotY:   0, label:'北牆中央' },
+  { pos: new THREE.Vector3( 6.0, -0.6,  1.5), rotY: -90, label:'東牆書桌旁' },
+  { pos: new THREE.Vector3( 6.0, -0.6, -3.0), rotY: -90, label:'東牆北端' },
+  { pos: new THREE.Vector3(-5.5, -0.6,  0.0), rotY:  90, label:'西牆中央' },
+  { pos: new THREE.Vector3(-2.0, -0.6,  5.6), rotY: 180, label:'南牆門口旁' },
+  { pos: new THREE.Vector3(-5.5, -0.6,  3.5), rotY:  90, label:'西牆南端' },
 ];
 const SWITCH_COLORS=[0x00aaff,0xff4400,0x00ff88,0xff00cc,0xffcc00,0x00ffff];
 let lastSwitchPosIdx=-1;
 
 // 物品可以出現的位置
-// Y=-1.2 ≈ 地板高度（camera y=0，地板約在 -1.2）
+// 物品位置（依房間家具分布規劃）
 const ITEM_POSITIONS=[
-  new THREE.Vector3( 0,   -1.2, -3.0),
-  new THREE.Vector3(-2.0, -1.2, -2.0),
-  new THREE.Vector3( 2.0, -1.2, -2.0),
-  new THREE.Vector3(-3.0, -1.2,  1.0),
-  new THREE.Vector3( 3.0, -1.2,  1.0),
-  new THREE.Vector3( 0,   -1.2,  2.0),
-  new THREE.Vector3(-1.5, -1.2, -5.0),
-  new THREE.Vector3( 1.5, -1.2, -5.0),
+  { pos: new THREE.Vector3( 0.0, -2.5,  0.0), label:'地板中央' },
+  { pos: new THREE.Vector3( 5.0, -1.2,  0.5), label:'書桌桌面' },  // 書桌 Y≈-1.52+0.3
+  { pos: new THREE.Vector3( 2.0, -2.5, -3.5), label:'床邊地板' },
+  { pos: new THREE.Vector3(-1.5, -2.5, -2.5), label:'衣櫃旁' },
+  { pos: new THREE.Vector3(-4.8, -2.5, -3.8), label:'西北角' },
+  { pos: new THREE.Vector3(-2.0, -2.5,  4.5), label:'南牆前' },
+  { pos: new THREE.Vector3( 4.0, -2.5,  4.0), label:'東南角' },
+  { pos: new THREE.Vector3( 0.0, -2.5, -3.5), label:'北牆前方' },
 ];
 
-// 隨機選一個不重複的位置
-function pickSwitchPos(){
+// 隨機選一個不重複的開關定義
+function pickSwitchDef(){
   let idx;
-  do { idx=Math.floor(Math.random()*SWITCH_POSITIONS.length); }
-  while(idx===lastSwitchPosIdx && SWITCH_POSITIONS.length>1);
+  do { idx=Math.floor(Math.random()*SWITCH_DEFS_WALL.length); }
+  while(idx===lastSwitchPosIdx && SWITCH_DEFS_WALL.length>1);
   lastSwitchPosIdx=idx;
-  return SWITCH_POSITIONS[idx].clone();
+  return SWITCH_DEFS_WALL[idx];
 }
 
-// 生成一個新開關（每次點擊後呼叫）
+// 生成一個新開關（貼牆放置）
 function spawnSwitch(){
-  // 移除舊開關
   if(switchGroup){ scene.remove(switchGroup); switchGroup=null; }
 
-  const pos=pickSwitchPos();
-  const colorIdx=Math.floor(Math.random()*SWITCH_COLORS.length);
-  const color=SWITCH_COLORS[colorIdx];
+  const def=pickSwitchDef();
+  const color=SWITCH_COLORS[Math.floor(Math.random()*SWITCH_COLORS.length)];
   const g=new THREE.Group();
   let visualMesh;
 
@@ -759,20 +758,20 @@ function spawnSwitch(){
     const model=powerGltfCache.scene.clone(true);
     const bbox=new THREE.Box3().setFromObject(model);
     const bsize=bbox.getSize(new THREE.Vector3());
-    const sc=0.55/Math.max(bsize.x,bsize.y,bsize.z);
+    // 縮放到 0.25 units（開關面板大小）
+    const sc=0.25/Math.max(bsize.x,bsize.y,bsize.z);
     model.scale.setScalar(sc);
-    const bc=new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
-    model.position.sub(bc);
+    // 置中並讓底部貼牆
+    const bbox2=new THREE.Box3().setFromObject(model);
+    const bc=bbox2.getCenter(new THREE.Vector3());
+    model.position.set(-bc.x, -bc.y, -bbox2.min.z);  // Z=0 為貼牆面
     model.traverse(ch=>{
       if(ch.isMesh){
         const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-        ms.forEach(mat=>{ mat.emissive=new THREE.Color(color); mat.emissiveIntensity=0.6; });
+        ms.forEach(mat=>{ mat.emissive=new THREE.Color(color); mat.emissiveIntensity=0.8; });
       }
     });
     g.add(model); visualMesh=model;
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.38,0.045,8,24),
-      new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.4,side:THREE.DoubleSide}));
-    ring.rotation.x=Math.PI/2; g.add(ring);
   } else {
     // 發光方塊 fallback
     const cube=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.45,0.45),new THREE.MeshBasicMaterial({color}));
@@ -800,19 +799,22 @@ function spawnSwitch(){
   const hitbox=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.4,1.4),new THREE.MeshBasicMaterial({visible:false}));
   hitbox.name='hit'; g.add(hitbox);
 
-  g.position.copy(pos);
-  g.userData={activated:false, visualMesh, light};
+  g.position.copy(def.pos);
+  g.rotation.y = def.rotY * Math.PI/180;
+  g.userData={activated:false, visualMesh, light, label:def.label};
   light.intensity=3.0;
   scene.add(g);
   switchGroup=g;
-  console.log('Switch spawned at',pos.x.toFixed(1),pos.y.toFixed(1),pos.z.toFixed(1));
+  console.log('Switch spawned:',def.label, def.pos.x.toFixed(1),def.pos.y.toFixed(1),def.pos.z.toFixed(1));
 }
 
 // 在房間裡放一個物品（開燈時出現，關燈時由 removeCurrentItem 移除）
 function spawnItemInRoom(itemIdx){
   removeCurrentItem(); // 先確保清掉舊的
   const posIdx=Math.floor(Math.random()*ITEM_POSITIONS.length);
-  const pos=ITEM_POSITIONS[posIdx].clone();
+  const posDef=ITEM_POSITIONS[posIdx];
+  const pos=posDef.pos.clone();
+  console.log('Item spawn:',posDef.label);
   const item=ITEMS[itemIdx];
   const itemColor=parseInt((item.color?item.color[0]||'#330000':'#330000').replace('#',''),16);
   const g=new THREE.Group();
@@ -938,8 +940,8 @@ function render(){
     camera.position.addScaledVector(fwd,-joy.y*spd);
     camera.position.addScaledVector(right,joy.x*spd);
   }
-  camera.position.x=Math.max(-4.4,Math.min(4.4,camera.position.x));
-  camera.position.z=Math.max(-6.6,Math.min(6.6,camera.position.z));
+  camera.position.x=Math.max(-5.3,Math.min(5.8,camera.position.x));
+  camera.position.z=Math.max(-4.0,Math.min(5.2,camera.position.z));
 
   // Head bob when moving
   const isMoving=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
@@ -982,6 +984,9 @@ function render(){
     const sw=getAimedSwitch();
     document.getElementById('crosshair').className=sw?'aimed':'';
     document.getElementById('aim-hint').className=sw?'show':'';
+    if(sw&&sw.userData.label){
+      document.getElementById('aim-hint').textContent='[ 點 擊 ] 啟 動 — '+sw.userData.label;
+    }
 
     // (movement indicator removed)
   }
