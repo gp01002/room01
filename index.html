@@ -105,6 +105,26 @@ canvas{display:block}
 <div id="flash"></div>
 <div id="hint-bar">WASD 走 動 ｜ 滑 鼠 轉 向 ｜ 點 擊 開 關</div>
 
+<div id="ending-screen" style="
+  position:fixed;inset:0;background:#000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  z-index:70;cursor:pointer;gap:24px">
+  <img id="ending-img" src="" style="max-width:85vw;max-height:65vh;display:none">
+  <div id="ending-text" style="
+    color:#550000;font-size:1.1rem;letter-spacing:8px;text-align:center;
+    line-height:2.2;font-family:'Courier New',monospace;
+    animation:flick 4s infinite;max-width:600px;padding:0 20px">
+    夢 終 究 是 假 的<br>
+    <span style="font-size:.6rem;letter-spacing:6px;color:#222;display:block;margin-top:20px">
+      但 你 確 實 曾 經 在 這 裡
+    </span>
+    <span style="font-size:.55rem;letter-spacing:4px;color:#1a1a1a;display:block;margin-top:30px">
+      ── 全 部 十 個 碎 片 已 找 到 ──
+    </span>
+  </div>
+  <div style="color:#1a1a1a;font-size:.52rem;letter-spacing:4px;margin-top:10px">— 點 擊 重 新 開 始 —</div>
+</div>
+
 <div id="diary-screen">
   <img id="diary-img" src="" alt="">
   <div id="diary-tap">— 點 擊 繼 續 —</div>
@@ -182,6 +202,7 @@ let usedItemIdxs=[], lastSwIdx=-1;
 let powerCache=null, skipRequested=false, t=0;
 let xrSession=null, vrGazeTimer=0, vrReticle=null, cameraRig=null;
 let floatingNote=null, noteClickCount=0, noteTimer=null;
+let totalItemsFound=0;  // 累計找到的物品數（不重置）
 const joy={x:0,y:0};
 const RC = new THREE.Raycaster(); RC.far=10;
 const keys={};
@@ -371,22 +392,40 @@ function spawnSwitch(){
   if(powerCache){
     const model = powerCache.scene.clone(true);
 
-    // 關鍵修正：GLB clone 自帶 transform hierarchy，
-    // 直接設 model.rotation 會被內部節點覆蓋。
-    // 用 wrapper group 包住，rotation 設在 wrapper 上才有效。
-    const wrapper = new THREE.Group();
+    // 強制重設所有內部節點的 rotation 為 identity
+    // 這樣 GLB 內建的 baked transform 就不會干擾外層旋轉
+    model.traverse(node=>{
+      if(node.isMesh || node.isGroup || node.isObject3D){
+        node.rotation.set(0, 0, 0);
+        node.quaternion.set(0, 0, 0, 1);
+      }
+    });
 
-    const sc = 0.12/52;   // 面板 ≈ 4cm
+    // 縮放：面板約 4cm
+    const sc = 0.12 / 52;
     model.scale.setScalar(sc);
 
-    // 置中偏移（rotation.x=+PI/2 後的精確計算）:
-    //   X center = 4.2*sc = 0.0097  → pos.x = -0.0097
-    //   Y_new = -Z_old, center = -26.7*sc = -0.0616 → pos.y = +0.0616
-    //   Z_new = Y_old, back(Y=-16.6)→z=-0.038 → pos.z = +0.038 讓背面貼牆
-    model.position.set(-0.010, 0.062, 0.038);
+    // 原始頂點: X[-21.8,30.2] Y[-16.6,0.1] Z[0.7,52.7]
+    // 目標：面板(Y≈0)朝玩家(+Z)，高度(Z軸)直立(Y軸)
+    // rotation.x = -PI/2: Y→-Z(背面貼牆), Z→+Y(直立) ← 但面板Y=0→-Z朝牆
+    // rotation.x = +PI/2: Y→+Z(面板朝玩家✓), Z→-Y(倒立)
+    // 所以用 +PI/2 + 再加 rotation.z=PI 翻轉直立方向
+    const wrapper = new THREE.Group();
 
-    // 旋轉放在 wrapper（不動 model 本身）
-    wrapper.rotation.x = -Math.PI / 2;  // -90°: 面板(+Y)→朝玩家(+Z)
+    // 步驟1: +PI/2 讓面板朝玩家
+    // 步驟2: rotation.z = PI 讓高度翻正（原本倒立）
+    wrapper.rotation.x = Math.PI / 2;
+    wrapper.rotation.z = Math.PI;
+
+    // 重設後的頂點中心偏移 (旋轉後計算):
+    // rotation.x=+PI/2: X不變, Y→Z, Z→-Y
+    // X center = 4.2*sc = 0.0097
+    // Z_new = Y_old center = -8.3*sc = -0.0192  → 最小Z=Y_old_min=-16.6*sc=-0.038
+    // Y_new = -Z_old center = -26.7*sc = -0.0616  → 最小Y=-Z_old_max=-52.7*sc=-0.122
+    // 加 rotation.z=PI: X→-X, Y→-Y
+    // 最終: pos.x = +0.0097, pos.y = +0.0616
+    //       pos.z = +0.038 讓背面(Z_new_min=-0.038)貼牆面(z=0)
+    model.position.set(0.010, 0.062, 0.038);
     wrapper.add(model);
 
     model.traverse(ch=>{
@@ -396,7 +435,7 @@ function spawnSwitch(){
         mat=mat.clone();
         mat.side=THREE.DoubleSide;
         mat.emissive=new THREE.Color(color);
-        mat.emissiveIntensity=0.6;
+        mat.emissiveIntensity=0.7;
         ch.material=mat;
       });
     });
@@ -565,6 +604,7 @@ function activateSwitch(){
   const avail=ITEMS.map((_,i)=>i).filter(i=>!usedItemIdxs.includes(i));
   const idx=avail.length ? avail[Math.floor(Math.random()*avail.length)] : Math.floor(Math.random()*ITEMS.length);
   usedItemIdxs.push(idx);
+  totalItemsFound++;
   if(usedItemIdxs.length>=ITEMS.length) usedItemIdxs=[];
 
   // 燈亮 + 物品出現
@@ -643,9 +683,12 @@ function buildFloatingNote(img, fallbackItem){
     '<span style="color:#332200;font-size:.5rem">點 擊 10 下 或 等 15 秒 繼 續</span>';
 
   if(noteTimer) clearTimeout(noteTimer);
-  noteTimer = setTimeout(() => closeDiary(), 15000);
+  // 第10個物品後顯示結局
+  const isEnding = (totalItemsFound >= ITEMS.length);
+  noteTimer = setTimeout(() => isEnding ? showEnding() : closeDiary(), 15000);
 
-  function onAnyClick(){ noteClickCount++; if(floatingNote) floatingNote.userData.rotSpd *= -1.4; if(noteClickCount >= 10) closeDiary(); }
+  const isEndingNote = (totalItemsFound >= ITEMS.length);
+  function onAnyClick(){ noteClickCount++; if(floatingNote) floatingNote.userData.rotSpd *= -1.4; if(noteClickCount >= 10){ if(isEndingNote) showEnding(); else closeDiary(); } }
   document._noteClick = onAnyClick;
   document.addEventListener('click', onAnyClick);
   document.addEventListener('touchend', onAnyClick);
@@ -679,6 +722,28 @@ function removeFloatingNote(){
     document._noteClick = null;
   }
   document.getElementById('hud-right').innerHTML = '';
+}
+
+function showEnding(){
+  removeFloatingNote();
+  if(isLocked) document.exitPointerLock();
+  const el=document.getElementById('ending-screen');
+  el.style.display='flex';
+  // 嘗試載入結局 PNG，不存在就顯示文字
+  const img=document.getElementById('ending-img');
+  img.src='https://raw.githubusercontent.com/gp01002/room01/main/ending.png';
+  img.onload=()=>{ img.style.display='block'; document.getElementById('ending-text').style.display='none'; };
+  img.onerror=()=>{ img.style.display='none'; document.getElementById('ending-text').style.display='block'; };
+  el.onclick=()=>restartGame();
+}
+
+function restartGame(){
+  document.getElementById('ending-screen').style.display='none';
+  totalItemsFound=0; usedItemIdxs=[];
+  // 重回開始畫面
+  document.getElementById('start-screen').style.display='flex';
+  gameActive=false;
+  if(isLocked) document.exitPointerLock();
 }
 
 function closeDiary(){
