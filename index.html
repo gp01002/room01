@@ -204,7 +204,7 @@ let xrSession=null, vrGazeTimer=0, vrReticle=null, cameraRig=null;
 let floatingNote=null, noteClickCount=0, noteTimer=null;
 let totalItemsFound=0;  // 累計找到的物品數（不重置）
 const joy={x:0,y:0};
-const RC = new THREE.Raycaster(); RC.far=10;
+const RC = new THREE.Raycaster(); RC.far=2.5;  // 只在 2.5m 內才能點擊開關
 const keys={};
 document.addEventListener('keydown',e=>keys[e.code]=true);
 document.addEventListener('keyup',  e=>keys[e.code]=false);
@@ -811,9 +811,31 @@ function onMouseMove(e){
 
 function onClick(){
   if(!gameActive) return;
-  if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
-  if(document.getElementById('diary-screen').classList.contains('show')){ closeDiary(); return; }
-  const sw=getAimedSwitch(); if(sw) activateSwitch();
+
+  // 未鎖定：先鎖定滑鼠
+  if(!isLocked && !xrSession){
+    renderer.domElement.requestPointerLock();
+    return;
+  }
+
+  // 1. 若物品提示顯示中且靠近 → 點擊觸發日記
+  const hintEl = document.getElementById('item-hint');
+  if(sceneBright && currentItem && hintEl && hintEl.dataset.ready==='1'){
+    const d = camera.position.distanceTo(currentItem.position);
+    if(d < 1.5){
+      // 立刻觸發日記（取消倒數，直接看紙條）
+      if(lightTimer){ clearTimeout(lightTimer); lightTimer=null; }
+      setLights(false);
+      removeItem();
+      const idx = usedItemIdxs[usedItemIdxs.length-1] ?? 0;
+      setTimeout(()=> showDiary(idx), 300);
+      return;
+    }
+  }
+
+  // 2. 點擊開關
+  const sw = getAimedSwitch();
+  if(sw) activateSwitch();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -919,10 +941,12 @@ function render(){
     const hintEl=document.getElementById('item-hint');
     const prox=currentItem.children.find(c=>c.name==='itemProx');
     if(d<2.5 && prox){
-      hintEl.innerHTML='<b>'+prox.userData.name+'</b><span>'+prox.userData.model+'</span>';
+      hintEl.innerHTML='<b>'+prox.userData.name+'</b><span>'+prox.userData.model+'</span><span style="color:#550000;letter-spacing:3px">[ 點 擊 查 看 ]</span>';
+      hintEl.dataset.ready='1';  // 標記可點擊
       hintEl.classList.add('show');
     } else {
       hintEl.classList.remove('show');
+      hintEl.dataset.ready='0';
     }
   } else {
     document.getElementById('item-hint').classList.remove('show');
@@ -1006,8 +1030,21 @@ function setupTouch(){
     for(const t of e.changedTouches){
       if(t.identifier===lookId){
         lookId=null;
-        // 短點擊 → 嘗試啟動開關
-        if(gameActive){ const sw=getAimedSwitch(); if(sw) activateSwitch(); }
+        if(!gameActive) return;
+        // 先嘗試觸發物品日記
+        const hintEl=document.getElementById('item-hint');
+        if(sceneBright && currentItem && hintEl && hintEl.dataset.ready==='1'){
+          const d=cameraRig.position.distanceTo(currentItem.position);
+          if(d<1.5){
+            if(lightTimer){clearTimeout(lightTimer);lightTimer=null;}
+            setLights(false); removeItem();
+            const idx=usedItemIdxs[usedItemIdxs.length-1]??0;
+            setTimeout(()=>showDiary(idx),300);
+            return;
+          }
+        }
+        // 否則嘗試開關
+        const sw=getAimedSwitch(); if(sw) activateSwitch();
       }
     }
   });
