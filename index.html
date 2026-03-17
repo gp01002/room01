@@ -3,132 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>恐怖房間</title>
+<title>恐怖房間 - VR 優化版</title>
 <style>
+/* 保持原有樣式 */
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#000; overflow:hidden; font-family:'Courier New',monospace; }
 canvas { display:block; }
-
-/* ── START ── */
-#start-screen {
-  position:fixed; inset:0; background:#000;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100;
-}
+#start-screen { position:fixed; inset:0; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
 #start-title { color:#8b0000; font-size:2.2rem; letter-spacing:14px; text-shadow:0 0 40px #ff0000; animation:flick 3s infinite; margin-bottom:8px; }
 #start-sub { color:#252525; font-size:0.68rem; letter-spacing:6px; margin-bottom:50px; }
-.btn {
-  padding:12px 42px; background:transparent; border:1px solid #550000; color:#550000;
-  font-size:0.72rem; letter-spacing:5px; cursor:pointer; transition:all 0.3s; margin:5px;
-  font-family:'Courier New',monospace;
-}
+.btn { padding:12px 42px; background:transparent; border:1px solid #550000; color:#550000; font-size:0.72rem; letter-spacing:5px; cursor:pointer; transition:all 0.3s; margin:5px; font-family:'Courier New',monospace; }
 .btn:hover { background:#55000018; box-shadow:0 0 18px #55000055; color:#cc0000; border-color:#cc0000; }
 .btn.dim { border-color:#1a1a1a; color:#1a1a1a; font-size:0.6rem; }
-
-/* ── HUD ── */
-#hud {
-  position:fixed; top:0; left:0; right:0; padding:14px 22px;
-  background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent);
-  display:flex; justify-content:space-between; align-items:center;
-  pointer-events:none; z-index:10; color:#440000; font-size:0.65rem; letter-spacing:4px;
-}
-#hud-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
-#hud-count span { color:#cc0000; }
-#round-label { color:#222; font-size:0.55rem; letter-spacing:3px; }
-
-/* ── CROSSHAIR ── */
+#hud { position:fixed; top:0; left:0; right:0; padding:14px 22px; background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent); display:flex; justify-content:space-between; align-items:center; pointer-events:none; z-index:10; color:#440000; font-size:0.65rem; letter-spacing:4px; }
 #crosshair { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; z-index:20; width:20px; height:20px; }
 #ch-h,#ch-v { position:absolute; background:rgba(255,255,255,0.38); }
 #ch-h { width:14px; height:1px; top:9px; left:3px; }
 #ch-v { width:1px; height:14px; top:3px; left:9px; }
 #crosshair.aimed #ch-h, #crosshair.aimed #ch-v { background:rgba(255,100,0,0.95); }
-#aim-hint {
-  position:fixed; top:57%; left:50%; transform:translateX(-50%);
-  color:#bb3300; font-size:0.6rem; letter-spacing:5px;
-  pointer-events:none; z-index:20; opacity:0; transition:opacity 0.15s;
-}
+#aim-hint { position:fixed; top:57%; left:50%; transform:translateX(-50%); color:#bb3300; font-size:0.6rem; letter-spacing:5px; pointer-events:none; z-index:20; opacity:0; transition:opacity 0.15s; }
 #aim-hint.show { opacity:1; }
-
-/* ── COUNTDOWN ── */
-#countdown-wrap {
-  position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
-  pointer-events:none; z-index:15; text-align:center; display:none;
-}
-#countdown-num { color:#8b0000; font-size:3rem; letter-spacing:8px; text-shadow:0 0 30px #ff0000; animation:flick 0.8s infinite; }
-#countdown-label { color:#333; font-size:0.55rem; letter-spacing:5px; margin-top:4px; }
-
-/* ── REVEAL ── */
-#reveal-screen {
-  position:fixed; inset:0; background:rgba(0,0,0,0.93);
-  display:none; flex-direction:column; align-items:center; justify-content:center; z-index:50;
-}
-#reveal-screen.show { display:flex; animation:fadeIn 0.2s; }
-@keyframes fadeIn { from{opacity:0} to{opacity:1} }
-#reveal-wrap { animation:glitchIn 0.4s forwards; }
-@keyframes glitchIn {
-  0%  { transform:scale(2.5) skewX(8deg); opacity:0; filter:blur(14px) hue-rotate(180deg); }
-  55% { transform:scale(0.97); opacity:1; filter:blur(1px); }
-  80% { transform:scale(1.03); }
-  100%{ transform:scale(1); filter:blur(0); }
-}
-#reveal-item-name { color:#8b0000; font-size:0.75rem; letter-spacing:8px; margin-top:18px; text-shadow:0 0 20px #ff0000; animation:flick 2s infinite; }
-#reveal-model-hint { color:#222; font-size:0.5rem; letter-spacing:4px; margin-top:8px; }
-#close-btn {
-  margin-top:22px; padding:9px 34px; background:transparent;
-  border:1px solid #330000; color:#550000; font-size:0.7rem; letter-spacing:5px;
-  cursor:pointer; font-family:'Courier New',monospace; transition:all 0.3s;
-}
-#close-btn:hover { border-color:#cc0000; color:#cc0000; }
-
-/* ── BLACKOUT ── */
-#blackout {
-  position:fixed; inset:0; background:#000; opacity:0;
-  pointer-events:none; z-index:60; transition:opacity 0.8s;
-}
-#blackout.fade { opacity:1; }
-
-/* ── NEW ROUND ── */
-#new-round-msg {
-  position:fixed; inset:0; background:#000;
-  display:none; flex-direction:column; align-items:center; justify-content:center; z-index:80;
-}
-#new-round-msg.show { display:flex; }
-#nr-title { color:#330000; font-size:1.2rem; letter-spacing:10px; animation:flick 2s infinite; margin-bottom:10px; }
-#nr-sub { color:#1a1a1a; font-size:0.6rem; letter-spacing:5px; }
-
-/* ── HINT BAR ── */
-#hint-bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); color:#1a1a1a; font-size:0.52rem; letter-spacing:3px; pointer-events:none; z-index:10; }
-
-#flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
-#diary-screen.show { display:flex; }
-
-#item-hint {
-  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-  background:rgba(0,0,0,0.85); border:1px solid #440000;
-  color:#cc4400; font-size:0.8rem; letter-spacing:5px; text-align:center;
-  padding:12px 28px; pointer-events:none; z-index:25;
-  opacity:0; transition:opacity 0.3s;
-  box-shadow:0 0 20px rgba(80,0,0,0.4);
-  max-width:500px;
-}
+#item-hint { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.85); border:1px solid #440000; color:#cc4400; font-size:0.8rem; letter-spacing:5px; text-align:center; padding:12px 28px; pointer-events:none; z-index:25; opacity:0; transition:opacity 0.3s; box-shadow:0 0 20px rgba(80,0,0,0.4); max-width:500px; }
 #item-hint.show { opacity:1; }
-#item-hint span { color:#333; font-size:0.52rem; letter-spacing:3px; display:block; margin-top:4px; }
-
-/* ── MOBILE JOY ── */
-#joy-zone { position:fixed; bottom:50px; left:30px; z-index:15; display:none; }
-#joy-base { width:90px; height:90px; border-radius:50%; border:1px solid #222; background:rgba(0,0,0,0.5); position:relative; touch-action:none; }
-#joy-thumb { width:34px; height:34px; border-radius:50%; background:rgba(100,0,0,0.4); border:1px solid #440000; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none; }
-
-/* ── LOADER ── */
+#flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:40; }
+#diary-screen { position:fixed;inset:0;background:rgba(0,0,0,0.92); display:none;align-items:center;justify-content:center;z-index:55;flex-direction:column; }
+#diary-screen.show { display:flex; }
 #loader { position:fixed; inset:0; background:#000; z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; }
 #loader-track { width:240px; height:2px; background:#111; margin:18px 0 10px; }
 #loader-fill { height:100%; width:0%; background:#550000; transition:width 0.15s; }
 #loader-msg { color:#222; font-size:0.58rem; letter-spacing:4px; }
-#loader-skip { margin-top:28px; padding:8px 28px; background:transparent; border:1px solid #181818; color:#181818; font-size:0.55rem; letter-spacing:4px; cursor:pointer; font-family:'Courier New',monospace; display:none; }
-#loader-skip:hover { border-color:#440000; color:#440000; }
-
-@keyframes flick {
-  0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.2} 93%{opacity:1} 95%{opacity:0.6} 96%{opacity:1}
-}
+@keyframes flick { 0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.2} 93%{opacity:1} 95%{opacity:0.6} 96%{opacity:1} }
 </style>
 </head>
 <body>
@@ -137,7 +41,6 @@ canvas { display:block; }
   <div style="color:#330000;font-size:0.65rem;letter-spacing:6px">載 入 中</div>
   <div id="loader-track"><div id="loader-fill"></div></div>
   <div id="loader-msg">準備中...</div>
-  <button id="loader-skip" onclick="skipLoader()">略 過</button>
 </div>
 
 <div id="start-screen">
@@ -149,1187 +52,239 @@ canvas { display:block; }
 
 <div id="hud">
   <div style="animation:flick 5s infinite">── 恐 怖 房 間 ──</div>
-  <div id="hud-right">
-    <div id="hud-count" style="animation:flick 6s infinite">── 找 到 開 關 ──</div>
-  </div>
+  <div id="hud-count">── 找 到 開 關 ──</div>
 </div>
 
 <div id="crosshair"><div id="ch-h"></div><div id="ch-v"></div></div>
 <div id="aim-hint">[ 點 擊 ] 啟 動</div>
-
-<div id="countdown-wrap">
-  <div id="countdown-num">10</div>
-  <div id="countdown-label">燈 即 將 熄 滅</div>
-</div>
-
-<div id="hint-bar">WASD 走 動 &nbsp;|&nbsp; 滑 鼠 轉 向 &nbsp;|&nbsp; 靠 近 發 光 方 塊 點 擊</div>
-<div id="move-indicator" style="position:fixed;top:50%;right:22px;transform:translateY(-50%);pointer-events:none;z-index:15;display:flex;flex-direction:column;gap:3px;opacity:0;transition:opacity 0.2s;">
-  <div id="mi-n"  style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▲</div>
-  <div style="display:flex;gap:3px">
-    <div id="mi-l" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">◀</div>
-    <div id="mi-s" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▼</div>
-    <div id="mi-r" style="width:28px;height:28px;border:1px solid #333;display:flex;align-items:center;justify-content:center;font-size:10px;color:#333;background:rgba(0,0,0,0.5)">▶</div>
-  </div>
-</div>
+<div id="item-hint"></div>
 <div id="flash"></div>
 
-<!-- 物品近距提示 -->
-<div id="item-hint">
-  <div id="item-hint-inner"></div>
-</div>
-
-<!-- REVEAL OVERLAY -->
-<div id="reveal-screen">
-  <div id="reveal-wrap">
-    <canvas id="reveal-canvas" width="420" height="340"></canvas>
-  </div>
-  <div id="reveal-item-name"></div>
-  <div id="reveal-model-hint"></div>
-  <button id="close-btn" onclick="closeReveal()">繼 續 探 索</button>
-</div>
-
-<!-- 日記頁面 -->
-<div id="diary-screen" style="
-  position:fixed;inset:0;background:rgba(0,0,0,0.92);
-  display:none;align-items:center;justify-content:center;z-index:55;flex-direction:column;">
-  <img id="diary-img" src="" style="
-    max-width:85vw;max-height:78vh;
-    border:1px solid #2a1800;box-shadow:0 0 40px rgba(60,20,0,0.8);
-    image-rendering:pixelated;" alt="diary">
-  <div style="margin-top:16px;color:#442200;font-size:0.6rem;letter-spacing:5px;animation:flick 3s infinite">
-    — 點 擊 繼 續 —
-  </div>
-</div>
-
-<!-- BLACKOUT -->
-<div id="blackout"></div>
-
-<!-- NEW ROUND MSG -->
-<div id="new-round-msg">
-  <div id="nr-title">燈 熄 了</div>
-  <div id="nr-sub">下 一 輪 開 始...</div>
-</div>
-
-<!-- MOBILE -->
-<div id="joy-zone">
-  <div id="joy-base"><div id="joy-thumb"></div></div>
+<div id="diary-screen">
+  <img id="diary-img" src="" style="max-width:85vw;max-height:78vh;border:1px solid #2a1800;box-shadow:0 0 40px rgba(60,20,0,0.8);image-rendering:pixelated;">
+  <div style="margin-top:16px;color:#442200;font-size:0.6rem;letter-spacing:5px;animation:flick 3s infinite">— 點 擊 繼 續 —</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
 <script>
 // ══════════════════════════════════════════════════════════════════
-//  10 HORROR ITEMS  (canvas placeholder + model info)
+//  核心變數與配置
 // ══════════════════════════════════════════════════════════════════
 const ITEMS = [
-  {
-    name: '古 老 電 話',
-    modelName: 'Old Rotary Telephone',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_telephone.glb',
-    color: ['#1a0d00','#3a1800','#5a2800'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#0a0600'; ctx.fillRect(0,0,w,h);
-      // Body
-      ctx.fillStyle='#2a1200'; ctx.beginPath(); ctx.roundRect(w*.2,h*.3,w*.6,h*.35,20); ctx.fill();
-      ctx.strokeStyle='#4a2200'; ctx.lineWidth=2; ctx.stroke();
-      // Dial
-      ctx.beginPath(); ctx.arc(w*.5,h*.48,h*.12,0,Math.PI*2); ctx.fillStyle='#1a0a00'; ctx.fill();
-      ctx.strokeStyle='#3a1800'; ctx.lineWidth=1.5; ctx.stroke();
-      for(let i=0;i<12;i++){const a=i/12*Math.PI*2; ctx.beginPath(); ctx.arc(w*.5+Math.cos(a)*h*.09,h*.48+Math.sin(a)*h*.09,3,0,Math.PI*2); ctx.fillStyle='#553300'; ctx.fill();}
-      // Handset
-      ctx.strokeStyle='#3a1800'; ctx.lineWidth=8; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(w*.22,h*.28); ctx.bezierCurveTo(w*.3,h*.18,w*.7,h*.18,w*.78,h*.28); ctx.stroke();
-      // Red glow
-      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.4);
-      g.addColorStop(0,'rgba(100,20,0,0.15)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      // Label
-      ctx.fillStyle='#553300'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: old_telephone.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '破 碎 的 娃 娃',
-    modelName: 'Broken Porcelain Doll',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken_doll.glb',
-    color: ['#0d0d1a','#1a1a3a','#2a2a55'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#080810'; ctx.fillRect(0,0,w,h);
-      // Head
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.3,h*.15,h*.17,0,0,Math.PI*2);
-      ctx.fillStyle='#c8b090'; ctx.fill(); ctx.strokeStyle='#3a3060'; ctx.lineWidth=2; ctx.stroke();
-      // Crack on face
-      ctx.strokeStyle='#000'; ctx.lineWidth=2; ctx.beginPath();
-      ctx.moveTo(w*.48,h*.18); ctx.lineTo(w*.45,h*.28); ctx.lineTo(w*.5,h*.32); ctx.stroke();
-      // Eyes — one missing
-      ctx.beginPath(); ctx.arc(w*.44,h*.27,5,0,Math.PI*2); ctx.fillStyle='#1a0a2a'; ctx.fill();
-      ctx.beginPath(); ctx.arc(w*.56,h*.27,5,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); // empty socket
-      ctx.strokeStyle='#330022'; ctx.lineWidth=1; ctx.stroke();
-      // Body
-      ctx.fillStyle='#2a1a3a'; ctx.beginPath(); ctx.roundRect(w*.35,h*.46,w*.3,h*.28,8); ctx.fill();
-      ctx.strokeStyle='#4a3060'; ctx.lineWidth=1.5; ctx.stroke();
-      // Arms
-      ctx.strokeStyle='#c8b090'; ctx.lineWidth=6; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(w*.35,h*.5); ctx.lineTo(w*.22,h*.62); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(w*.65,h*.5); ctx.lineTo(w*.78,h*.58); ctx.stroke(); // broken arm
-      // Glow
-      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.45);
-      g.addColorStop(0,'rgba(60,0,80,0.2)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#332244'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: broken_doll.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '音 樂 盒',
-    modelName: 'Antique Music Box',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/music%20box%20antique.glb',
-    color: ['#0d0800','#1a1000','#2a1a00'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#080600'; ctx.fillRect(0,0,w,h);
-      // Box body
-      const grad=ctx.createLinearGradient(w*.2,h*.4,w*.8,h*.75);
-      grad.addColorStop(0,'#3a2800'); grad.addColorStop(1,'#1a1200');
-      ctx.fillStyle=grad; ctx.beginPath(); ctx.roundRect(w*.2,h*.42,w*.6,h*.3,8); ctx.fill();
-      ctx.strokeStyle='#6a4800'; ctx.lineWidth=2; ctx.stroke();
-      // Lid open
-      ctx.fillStyle='#2a1e00';
-      ctx.beginPath(); ctx.moveTo(w*.2,h*.42); ctx.lineTo(w*.5,h*.2); ctx.lineTo(w*.8,h*.42); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle='#5a3c00'; ctx.lineWidth=1.5; ctx.stroke();
-      // Ballerina silhouette
-      ctx.fillStyle='#8a6040';
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.3,6,8,0,0,Math.PI*2); ctx.fill(); // head
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.38); ctx.lineTo(w*.47,h*.5); ctx.lineTo(w*.53,h*.5); ctx.closePath(); ctx.fill();
-      // Gold inlay decorations
-      ctx.strokeStyle='#8a6200'; ctx.lineWidth=1;
-      for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(w*.24+i*w*.1,h*.44);ctx.lineTo(w*.24+i*w*.1,h*.7);ctx.stroke();}
-      // Warm glow
-      const g=ctx.createRadialGradient(w*.5,h*.4,0,w*.5,h*.4,w*.4);
-      g.addColorStop(0,'rgba(120,60,0,0.25)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#5a3c00'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: music_box.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '染 血 的 鑰 匙',
-    modelName: 'Blood-Stained Key',
-    modelUrl: 'https://sketchfab.com/3d-models/old-key-bloodstained-free-3d-model-df3d2f4dd8c34cd1b9fa81c6a0c2d6f8',
-    color: ['#1a0000','#2a0000','#3a0000'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#0a0000'; ctx.fillRect(0,0,w,h);
-      // Key bow (ring top)
-      ctx.beginPath(); ctx.arc(w*.5,h*.32,h*.12,0,Math.PI*2); ctx.strokeStyle='#8a7050'; ctx.lineWidth=10; ctx.stroke();
-      ctx.beginPath(); ctx.arc(w*.5,h*.32,h*.07,0,Math.PI*2); ctx.strokeStyle='#0a0000'; ctx.lineWidth=6; ctx.stroke();
-      // Shaft
-      ctx.strokeStyle='#9a8060'; ctx.lineWidth=8; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.44); ctx.lineTo(w*.5,h*.72); ctx.stroke();
-      // Teeth
-      ctx.lineWidth=5;
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.54); ctx.lineTo(w*.6,h*.54); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.62); ctx.lineTo(w*.65,h*.62); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.68); ctx.lineTo(w*.58,h*.68); ctx.stroke();
-      // Blood drips
-      ctx.fillStyle='rgba(150,0,0,0.8)';
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.58,4,8,0.2,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(w*.55,h*.65,3,6,-0.1,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(w*.48,h*.72,2,5,0,0,Math.PI*2); ctx.fill();
-      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.35);
-      g.addColorStop(0,'rgba(80,0,0,0.3)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#3a1010'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: bloody_key.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '碎 裂 的 鏡 子',
-    modelName: 'Cracked Mirror',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken%20mirror.glb',
-    color: ['#0a0a10','#10101a','#1a1a2a'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#06060c'; ctx.fillRect(0,0,w,h);
-      // Mirror frame
-      ctx.strokeStyle='#3a3a2a'; ctx.lineWidth=12; ctx.lineJoin='round';
-      ctx.strokeRect(w*.18,h*.12,w*.64,h*.68);
-      // Mirror surface - shattered
-      ctx.fillStyle='#0d0d14'; ctx.fillRect(w*.18,h*.12,w*.64,h*.68);
-      // Shatter lines from center
-      const cx=w*.5, cy=h*.45;
-      ctx.strokeStyle='rgba(180,180,220,0.35)'; ctx.lineWidth=1.5;
-      for(let i=0;i<12;i++){
-        const a=i/12*Math.PI*2;
-        const len=Math.random()*h*.25+h*.05;
-        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*len,cy+Math.sin(a)*len); ctx.stroke();
-      }
-      // Glass shard highlights
-      ctx.strokeStyle='rgba(200,200,255,0.2)'; ctx.lineWidth=0.5;
-      for(let i=0;i<8;i++){
-        ctx.beginPath(); ctx.moveTo(w*.2+Math.random()*w*.6,h*.14+Math.random()*h*.64);
-        ctx.lineTo(w*.2+Math.random()*w*.6,h*.14+Math.random()*h*.64); ctx.stroke();
-      }
-      // Dark reflection (silhouette of someone)
-      ctx.fillStyle='rgba(0,0,0,0.6)';
-      ctx.beginPath(); ctx.ellipse(cx,cy-h*.08,h*.06,h*.08,0,0,Math.PI*2); ctx.fill();
-      ctx.fillRect(cx-h*.04,cy,h*.08,h*.18);
-      // Blue glow
-      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,w*.35);
-      g.addColorStop(0,'rgba(30,30,80,0.4)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#2a2a44'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: cracked_mirror.glb ]',w*.5,h*.92);
-    }
-  },
-  {
-    name: '罐 中 的 眼 睛',
-    modelName: 'Eye in Jar',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/eye%20jar.glb',
-    color: ['#001a00','#002a00','#003a00'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#000d00'; ctx.fillRect(0,0,w,h);
-      // Jar body
-      const jg=ctx.createLinearGradient(w*.3,0,w*.7,0);
-      jg.addColorStop(0,'rgba(100,150,100,0.15)'); jg.addColorStop(0.5,'rgba(150,200,150,0.25)'); jg.addColorStop(1,'rgba(100,150,100,0.15)');
-      ctx.fillStyle=jg; ctx.beginPath(); ctx.roundRect(w*.28,h*.2,w*.44,h*.55,12); ctx.fill();
-      ctx.strokeStyle='rgba(100,150,100,0.4)'; ctx.lineWidth=2; ctx.stroke();
-      // Lid
-      ctx.fillStyle='#2a1800'; ctx.beginPath(); ctx.roundRect(w*.3,h*.16,w*.4,h*.07,4); ctx.fill();
-      ctx.strokeStyle='#4a3000'; ctx.lineWidth=1.5; ctx.stroke();
-      // Liquid
-      ctx.fillStyle='rgba(0,60,10,0.5)'; ctx.fillRect(w*.29,h*.55,w*.42,h*.19);
-      // THE EYE
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.43,h*.1,h*.12,0,0,Math.PI*2);
-      ctx.fillStyle='#fffde7'; ctx.fill();
-      ctx.strokeStyle='rgba(0,80,0,0.3)'; ctx.lineWidth=1; ctx.stroke();
-      // Iris
-      const ig=ctx.createRadialGradient(w*.5,h*.43,0,w*.5,h*.43,h*.07);
-      ig.addColorStop(0,'#000'); ig.addColorStop(0.3,'#004400'); ig.addColorStop(1,'#001a00');
-      ctx.beginPath(); ctx.arc(w*.5,h*.43,h*.07,0,Math.PI*2); ctx.fillStyle=ig; ctx.fill();
-      // Pupil
-      ctx.beginPath(); ctx.arc(w*.5,h*.43,h*.035,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
-      // Shine
-      ctx.beginPath(); ctx.arc(w*.47,h*.4,4,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fill();
-      // Veins on eyeball
-      ctx.strokeStyle='rgba(0,100,0,0.4)'; ctx.lineWidth=1;
-      for(const [a,len] of [[0.5,0.07],[2.1,0.06],[3.8,0.08],[5.2,0.05]]){
-        ctx.beginPath(); ctx.moveTo(w*.5+Math.cos(a)*h*.07,h*.43+Math.sin(a)*h*.07);
-        ctx.lineTo(w*.5+Math.cos(a)*h*(0.07+len),h*.43+Math.sin(a)*h*(0.07+len)); ctx.stroke();
-      }
-      // Green glow
-      const g=ctx.createRadialGradient(w*.5,h*.43,0,w*.5,h*.43,w*.3);
-      g.addColorStop(0,'rgba(0,60,0,0.35)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#1a3a1a'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: eye_in_jar.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '融 化 的 蠟 燭',
-    modelName: 'Melting Candle',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/melting%20candle.glb',
-    color: ['#1a1000','#2a1a00','#3a2200'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#0a0800'; ctx.fillRect(0,0,w,h);
-      // Wax drips around base
-      ctx.fillStyle='#c8a870';
-      for(const [x,r,ht] of [[w*.42,8,h*.14],[w*.36,6,h*.1],[w*.6,7,h*.12],[w*.64,5,h*.08]]){
-        ctx.beginPath(); ctx.ellipse(x,h*.72,r,ht,0,0,Math.PI*2); ctx.fill();
-      }
-      // Candle body
-      const wg=ctx.createLinearGradient(w*.4,0,w*.6,0);
-      wg.addColorStop(0,'#a88860'); wg.addColorStop(0.5,'#d4b080'); wg.addColorStop(1,'#a88860');
-      ctx.fillStyle=wg; ctx.beginPath(); ctx.roundRect(w*.4,h*.32,w*.2,h*.42,4); ctx.fill();
-      // Melted top — uneven
-      ctx.fillStyle='#d4b080';
-      ctx.beginPath(); ctx.moveTo(w*.4,h*.32); ctx.bezierCurveTo(w*.42,h*.28,w*.45,h*.3,w*.5,h*.28); ctx.bezierCurveTo(w*.55,h*.26,w*.58,h*.3,w*.6,h*.32); ctx.lineTo(w*.4,h*.32); ctx.fill();
-      // Wick
-      ctx.strokeStyle='#1a1000'; ctx.lineWidth=2; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.28); ctx.lineTo(w*.51,h*.22); ctx.stroke();
-      // Flame
-      const fg=ctx.createRadialGradient(w*.51,h*.18,0,w*.51,h*.18,h*.07);
-      fg.addColorStop(0,'#ffffff'); fg.addColorStop(0.3,'#ffdd44'); fg.addColorStop(0.7,'#ff6600'); fg.addColorStop(1,'transparent');
-      ctx.fillStyle=fg; ctx.beginPath(); ctx.ellipse(w*.51,h*.17,h*.025,h*.055,-0.1,0,Math.PI*2); ctx.fill();
-      // Warm glow
-      const g=ctx.createRadialGradient(w*.51,h*.17,0,w*.51,h*.17,w*.45);
-      g.addColorStop(0,'rgba(255,120,0,0.25)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#5a3c10'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: melting_candle.glb ]',w*.5,h*.9);
-    }
-  },
-  {
-    name: '撕 破 的 日 記',
-    modelName: 'Old Book Diary',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old%20book%20diary.glb',
-    color: ['#100a00','#1a1000','#2a1800'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#090600'; ctx.fillRect(0,0,w,h);
-      // Book cover
-      ctx.fillStyle='#2a1400'; ctx.beginPath(); ctx.roundRect(w*.2,h*.18,w*.55,h*.56,4); ctx.fill();
-      ctx.strokeStyle='#4a2800'; ctx.lineWidth=2; ctx.stroke();
-      // Spine
-      ctx.fillStyle='#1a0c00'; ctx.fillRect(w*.2,h*.18,w*.07,h*.56);
-      // Pages - torn and sticking out
-      for(let i=0;i<4;i++){
-        ctx.fillStyle=`rgba(220,200,170,${0.6+i*0.05})`;
-        ctx.save(); ctx.translate(w*.74,h*.28+i*h*.08); ctx.rotate((Math.random()-0.5)*0.15);
-        ctx.fillRect(0,0,w*.1,h*.12); ctx.restore();
-      }
-      // Visible page content
-      ctx.fillStyle='#c8b890'; ctx.beginPath(); ctx.roundRect(w*.28,h*.22,w*.44,h*.48,2); ctx.fill();
-      // Handwriting lines
-      ctx.strokeStyle='rgba(60,30,0,0.4)'; ctx.lineWidth=1;
-      for(let i=0;i<8;i++){ ctx.beginPath(); ctx.moveTo(w*.3,h*.28+i*h*.05); ctx.lineTo(w*.7,h*.27+i*h*.05); ctx.stroke(); }
-      // Stain
-      ctx.fillStyle='rgba(80,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(w*.55,h*.48,30,20,-0.3,0,Math.PI*2); ctx.fill();
-      // Strange symbols
-      ctx.fillStyle='rgba(40,0,0,0.7)'; ctx.font=`${h*.1}px serif`;
-      ctx.fillText('⛧',w*.44,h*.52);
-      const g=ctx.createRadialGradient(w*.5,h*.5,0,w*.5,h*.5,w*.3);
-      g.addColorStop(0,'rgba(50,20,0,0.2)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#3a2400'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: torn_diary.glb ]',w*.5,h*.88);
-    }
-  },
-  {
-    name: '停 止 的 時 鐘',
-    modelName: 'Grandfather Clock',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/grandfather%20clock.glb',
-    color: ['#0a0800','#181200','#241c00'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#080600'; ctx.fillRect(0,0,w,h);
-      // Clock case
-      ctx.fillStyle='#1e1400'; ctx.beginPath(); ctx.roundRect(w*.32,h*.1,w*.36,h*.75,6); ctx.fill();
-      ctx.strokeStyle='#3a2c00'; ctx.lineWidth=2; ctx.stroke();
-      // Clock face
-      ctx.beginPath(); ctx.arc(w*.5,h*.3,h*.13,0,Math.PI*2); ctx.fillStyle='#e8d8b0'; ctx.fill();
-      ctx.strokeStyle='#3a2c00'; ctx.lineWidth=3; ctx.stroke();
-      // Hour markers
-      ctx.fillStyle='#1e1400';
-      for(let i=0;i<12;i++){
-        const a=i/12*Math.PI*2-Math.PI/2;
-        const r=h*.1;
-        ctx.beginPath(); ctx.arc(w*.5+Math.cos(a)*r,h*.3+Math.sin(a)*r,2.5,0,Math.PI*2); ctx.fill();
-      }
-      // Hands — stopped at 3:33
-      ctx.strokeStyle='#1e1400'; ctx.lineWidth=3; ctx.lineCap='round';
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.3); ctx.lineTo(w*.5+Math.cos(-Math.PI/2+Math.PI/6)*h*.09,h*.3+Math.sin(-Math.PI/2+Math.PI/6)*h*.09); ctx.stroke(); // hour (3)
-      ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.3); ctx.lineTo(w*.5+Math.cos(-Math.PI/2+Math.PI*2*0.55)*h*.11,h*.3+Math.sin(-Math.PI/2+Math.PI*2*0.55)*h*.11); ctx.stroke(); // minute (33min)
-      // Pendulum window
-      ctx.fillStyle='#100c00'; ctx.fillRect(w*.42,h*.5,w*.16,h*.22);
-      ctx.strokeStyle='#2a2000'; ctx.lineWidth=1; ctx.stroke();
-      // Pendulum bob
-      ctx.strokeStyle='#8a7040'; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.5); ctx.lineTo(w*.5,h*.68); ctx.stroke();
-      ctx.beginPath(); ctx.arc(w*.5,h*.68,8,0,Math.PI*2); ctx.fillStyle='#8a7040'; ctx.fill();
-      const g=ctx.createRadialGradient(w*.5,h*.3,0,w*.5,h*.5,w*.35);
-      g.addColorStop(0,'rgba(60,40,0,0.2)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#3a2c00'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: old_clock.glb ]',w*.5,h*.92);
-    }
-  },
-  {
-    name: '無 名 的 骨 頭',
-    modelName: 'Human Skull',
-    glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/human%20skull.glb',
-    color: ['#0a0a00','#14140a','#1e1e12'],
-    draw: (ctx,w,h) => {
-      ctx.fillStyle='#080808'; ctx.fillRect(0,0,w,h);
-      // Skull cranium
-      const sg=ctx.createRadialGradient(w*.5,h*.32,0,w*.5,h*.35,h*.2);
-      sg.addColorStop(0,'#e0d8c0'); sg.addColorStop(1,'#c0b8a0');
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.34,h*.15,h*.18,0,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
-      ctx.strokeStyle='#8a8070'; ctx.lineWidth=1.5; ctx.stroke();
-      // Cheekbones
-      ctx.beginPath(); ctx.ellipse(w*.5,h*.5,h*.12,h*.08,0,0,Math.PI*2); ctx.fillStyle='#d0c8b0'; ctx.fill();
-      // Eye sockets
-      for(const ex of [w*.43,w*.57]){
-        ctx.beginPath(); ctx.ellipse(ex,h*.38,h*.042,h*.048,0,0,Math.PI*2);
-        ctx.fillStyle='#000'; ctx.fill(); ctx.strokeStyle='#5a5040'; ctx.lineWidth=1; ctx.stroke();
-      }
-      // Nose cavity
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.46); ctx.lineTo(w*.47,h*.5); ctx.lineTo(w*.53,h*.5); ctx.closePath();
-      ctx.fillStyle='#0a0a08'; ctx.fill();
-      // Teeth
-      ctx.fillStyle='#e0d8b8'; ctx.strokeStyle='#8a8060'; ctx.lineWidth=0.5;
-      for(let i=0;i<6;i++){ ctx.beginPath(); ctx.roundRect(w*.38+i*w*.04,h*.52,w*.033,h*.07,2); ctx.fill(); ctx.stroke(); }
-      // Crack
-      ctx.strokeStyle='rgba(80,70,50,0.6)'; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(w*.5,h*.2); ctx.lineTo(w*.48,h*.3); ctx.lineTo(w*.52,h*.36); ctx.stroke();
-      // Eerie glow
-      const g=ctx.createRadialGradient(w*.5,h*.4,0,w*.5,h*.4,w*.35);
-      g.addColorStop(0,'rgba(60,60,0,0.25)'); g.addColorStop(1,'transparent');
-      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-      ctx.fillStyle='#3a3820'; ctx.font=`${h*.055}px Courier New`; ctx.textAlign='center';
-      ctx.fillText('[ placeholder: human_skull.glb ]',w*.5,h*.9);
-    }
-  },
+  { name: '古 老 電 話', modelName: 'Old Rotary Telephone', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_telephone.glb' },
+  { name: '破 碎 的 娃 娃', modelName: 'Broken Porcelain Doll', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken_doll.glb' },
+  { name: '音 樂 盒', modelName: 'Antique Music Box', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/music%20box%20antique.glb' },
+  { name: '染 血 的 鑰 匙', modelName: 'Blood-Stained Key', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old_key_bloodstained.glb' },
+  { name: '碎 裂 的 鏡 子', modelName: 'Cracked Mirror', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/broken%20mirror.glb' },
+  { name: '罐 中 的 眼 睛', modelName: 'Eye in Jar', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/eye%20jar.glb' },
+  { name: '融 化 的 蠟 燭', modelName: 'Melting Candle', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/melting%20candle.glb' },
+  { name: '撕 破 的 日 記', modelName: 'Old Book Diary', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/old%20book%20diary.glb' },
+  { name: '停 止 的 時 鐘', modelName: 'Grandfather Clock', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/grandfather%20clock.glb' },
+  { name: '無 名 的 骨 頭', modelName: 'Human Skull', glbFile: 'https://raw.githubusercontent.com/gp01002/room01/main/human%20skull.glb' }
 ];
 
-// ══════════════════════════════════════════════════════════════════
-//  THREE.JS GLOBALS
-// ══════════════════════════════════════════════════════════════════
-let scene, camera, renderer, clock;
-let yaw=0, pitch=0, isLocked=false, gameActive=false;
-let switchGroup=null;
-let currentItem=null;
-let sceneBright=false;
-let lightTimer=null;
-let usedItemIdxs=[];
-let ceilingLight=null;
-let t=0;
-let skipRequested=false;
-let powerGltfCache=null;
-
-// VR
-let xrSession=null, xrRefSpace=null;
-let vrControllers=[];
-let vrGazeTimer=0;  // 凝視計時（準星對準開關）
-let vrGazeSw=null;
-
-// 日記
-const DIARY_IMGS=[
-  'diary_01.png','diary_02.png','diary_03.png','diary_04.png','diary_05.png',
-  'diary_06.png','diary_07.png','diary_08.png','diary_09.png','diary_10.png',
-];
-const DIARY_BASE='https://raw.githubusercontent.com/gp01002/room01/main/';
-let diaryQueue=[];  // 待顯示的日記索引
-
-const RC = new THREE.Raycaster(); RC.far=12;
-const keys={};
-document.addEventListener('keydown',e=>{ keys[e.code]=true; });
-document.addEventListener('keyup',e=>{ keys[e.code]=false; });
-const joy={x:0,y:0};
-
-// ══════════════════════════════════════════════════════════════════
-//  LOADER HELPERS
-// ══════════════════════════════════════════════════════════════════
-function showLoader(msg){ document.getElementById('loader').style.display='flex'; document.getElementById('loader-msg').textContent=msg; }
-function loaderPct(p,m){ document.getElementById('loader-fill').style.width=p+'%'; if(m) document.getElementById('loader-msg').textContent=m; }
-function hideLoader(){ document.getElementById('loader').style.display='none'; }
-function skipLoader(){ skipRequested=true; }
-
-// ══════════════════════════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════════════════════════
-function initThree(){
-  scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x050302,0.025);
-  camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,0.05,60);
-  camera.position.set(0,0,2); camera.rotation.order='YXZ';
-  renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.setSize(innerWidth,innerHeight);
-  renderer.shadowMap.enabled=true;
-  document.body.insertBefore(renderer.domElement,document.body.firstChild);
-  clock=new THREE.Clock();
-  window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
-  document.addEventListener('mousemove',onMouseMove);
-  document.addEventListener('click',onClick);
-  document.addEventListener('pointerlockchange',()=>{ isLocked=document.pointerLockElement===renderer.domElement; if(isLocked&&gameActive)console.log('Pointer locked'); });
-  setupTouch();
-
-  // 日記點擊
-  setTimeout(()=>{
-    const ds=document.getElementById('diary-screen');
-    if(ds) ds.addEventListener('click', closeDiary);
-  }, 100);
-
-  loadRoomGLB()
-    .then(()=> loadPowerGLB())
-    .then(()=>{
-      buildAtmosphere();
-      spawnSwitch();        // 燈光就緒後才生成開關
-      checkVR();
-      renderer.setAnimationLoop(render);
-      hideLoader();
-    });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  GLB LOADER
-// ══════════════════════════════════════════════════════════════════
-const ROOM_URL='https://raw.githubusercontent.com/gp01002/room01/main/room.glb';
-const POWER_URL='https://raw.githubusercontent.com/gp01002/room01/main/dirty_light_switch.glb';
-
-function loadRoomGLB(){
-  return new Promise(resolve=>{
-    if(typeof THREE.GLTFLoader==='undefined'){ buildProceduralRoom(); resolve(); return; }
-    showLoader('room.glb 載入中...');
-    setTimeout(()=>document.getElementById('loader-skip').style.display='block',2000);
-    let done=false, lastProg=Date.now();
-    const hardTid=setTimeout(()=>fin(null,'超時，使用預設房間'),8000);
-    const noRespTid=setTimeout(()=>{ if(Date.now()-lastProg>2800)fin(null,'無回應，使用預設'); },3000);
-    const pollId=setInterval(()=>{ if(skipRequested)fin(null,'略過'); },200);
-    function fin(g,msg){ if(done)return; done=true; clearTimeout(hardTid);clearTimeout(noRespTid);clearInterval(pollId); loaderPct(100,msg); if(g)placeRoom(g); else buildProceduralRoom(); resolve(); }
-    new THREE.GLTFLoader().load(ROOM_URL,
-      g=>fin(g,'room.glb ✓'),
-      p=>{ lastProg=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100),'room.glb '+Math.round(p.loaded/p.total*100)+'%'); },
-      e=>fin(null,'room.glb 失敗，使用預設')
-    );
-  });
-}
-
-function placeRoom(gltf){
-  const m=gltf.scene;
-  const box=new THREE.Box3().setFromObject(m);
-  const s=14/Math.max(...box.getSize(new THREE.Vector3()).toArray());
-  m.scale.setScalar(s); box.setFromObject(m);
-  const c=box.getCenter(new THREE.Vector3());
-  m.position.set(-c.x,-box.min.y-2.5,-c.z);
-  m.traverse(ch=>{ if(ch.isMesh){ ch.receiveShadow=true; const ms=Array.isArray(ch.material)?ch.material:[ch.material]; ms.forEach(mat=>{ if(mat.roughness!==undefined)mat.roughness=0.85; if(mat.color)mat.color.multiplyScalar(0.7); }); }});
-  scene.add(m);
-  buildDoor(new THREE.Vector3(2.5,-0.5,-6.9));
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  LOAD POWER.GLB (開關模型)
-// ══════════════════════════════════════════════════════════════════
-function loadPowerGLB(){
-  return new Promise(resolve=>{
-    if(typeof THREE.GLTFLoader==='undefined'){ powerGltfCache=null; resolve(); return; }
-    loaderPct(0,'power.glb 載入中...');
-    let done=false, lastProg=Date.now();
-    const hardTid=setTimeout(()=>fin(null),8000);
-    const noRespTid=setTimeout(()=>{ if(Date.now()-lastProg>2800)fin(null); },3000);
-    const pollId=setInterval(()=>{ if(skipRequested)fin(null); },200);
-    function fin(g){ if(done)return; done=true; clearTimeout(hardTid);clearTimeout(noRespTid);clearInterval(pollId); loaderPct(100,g?'power.glb ✓':'power.glb 使用預設'); powerGltfCache=g; resolve(); }
-    new THREE.GLTFLoader().load(POWER_URL,
-      g=>fin(g),
-      p=>{ lastProg=Date.now(); if(p.total>0) loaderPct(Math.round(p.loaded/p.total*100),'power.glb '+Math.round(p.loaded/p.total*100)+'%'); },
-      ()=>fin(null)
-    );
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  PROCEDURAL ROOM
-// ══════════════════════════════════════════════════════════════════
-function makeTex(fn){ const c=document.createElement('canvas'); c.width=512; c.height=512; fn(c.getContext('2d')); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; }
-
-function buildProceduralRoom(){
-  const W=10,H=5,D=14;
-  const wt=makeTex(x=>{ x.fillStyle='#2a2218';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=40){x.fillStyle=y%80?'#2e2419':'#32261c';x.fillRect(0,y,512,40);} x.strokeStyle='#3a3028';x.lineWidth=.5; for(let y=0;y<512;y+=40)for(let i=0;i<512;i+=30)x.strokeRect(i+4,y+4,22,32); }); wt.repeat.set(3,2);
-  const ft=makeTex(x=>{ x.fillStyle='#1e1810';x.fillRect(0,0,512,512); for(let y=0;y<512;y+=64)for(let i=0;i<512;i+=192){x.fillStyle=`hsl(25,18%,${13+Math.random()*4}%)`;x.fillRect(i+1,y+1,190,62);x.strokeStyle='#100c06';x.lineWidth=2;x.strokeRect(i+1,y+1,190,62);} }); ft.repeat.set(4,5);
-  const wm=new THREE.MeshLambertMaterial({map:wt,side:THREE.BackSide});
-  const fm=new THREE.MeshLambertMaterial({map:ft});
-  const cm=new THREE.MeshLambertMaterial({color:0x080808,side:THREE.BackSide});
-  scene.add(new THREE.Mesh(new THREE.BoxGeometry(W,H,D),[wm,wm,cm,fm,wm,wm]));
-  const sk=new THREE.MeshLambertMaterial({color:0x0e0a06});
-  for(const z of[-D/2+.02,D/2-.02]){const b=new THREE.Mesh(new THREE.BoxGeometry(W,.16,.03),sk);b.position.set(0,-H/2+.08,z);scene.add(b);}
-  for(const x of[-W/2+.02,W/2-.02]){const b=new THREE.Mesh(new THREE.BoxGeometry(.03,.16,D),sk);b.position.set(x,-H/2+.08,0);scene.add(b);}
-  buildDoor(new THREE.Vector3(2.5,-0.5,-D/2+.05));
-  buildPainting(0,0.7,D/2-.06);
-  buildCabinet(-4.3,-H/2,-1.5);
-}
-
-function buildDoor(pos){
-  const mat=new THREE.MeshLambertMaterial({color:0x100c04});
-  const door=new THREE.Mesh(new THREE.BoxGeometry(1.4,3,.09),mat); door.position.copy(pos); scene.add(door);
-  const ec=document.createElement('canvas'); ec.width=256; ec.height=512;
-  // simple door eye canvas
-  const ctx=ec.getContext('2d'); ctx.fillStyle='#000'; ctx.fillRect(0,0,256,512);
-  ctx.fillStyle='#0c0702'; ctx.fillRect(0,0,100,512);
-  doorEyesMesh=new THREE.Mesh(new THREE.PlaneGeometry(1.4,3),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(ec),transparent:true,opacity:0}));
-  doorEyesMesh.position.set(pos.x,pos.y,pos.z+.07); scene.add(doorEyesMesh);
-}
-function buildPainting(x,y,z){
-  const fr=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2),new THREE.MeshLambertMaterial({color:0x180c08})); fr.position.set(x,y,z); fr.rotation.y=Math.PI; scene.add(fr);
-}
-function buildCabinet(x,fy,z){
-  const m=new THREE.MeshLambertMaterial({color:0x140e08}); const c=new THREE.Mesh(new THREE.BoxGeometry(1.2,1.6,.6),m); c.position.set(x,fy+.8,z); scene.add(c);
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  GLOWING CUBE SWITCHES  ← 3 switches, each a coloured glowing cube
-// ══════════════════════════════════════════════════════════════════
-// 開關貼牆位置 — 依 GLB 精確牆面座標
-// 北牆內面 Z=-3.21, 東牆 X=2.85, 西牆 X=-5.66, 南牆 Z=4.98
-// 開關貼牆偏移 0.12 units，高度 Y=-0.5（腰部）
-const SWITCH_DEFS_WALL=[
-  { pos: new THREE.Vector3( 0.5, -0.5, -3.09), rotY:   0, label:'北牆中央' },
-  { pos: new THREE.Vector3(-3.5, -0.5, -3.09), rotY:   0, label:'北牆西側' },
-  { pos: new THREE.Vector3( 2.73, -0.5, -1.5), rotY: -90, label:'東牆北段' },
-  { pos: new THREE.Vector3( 2.73, -0.5,  2.5), rotY: -90, label:'東牆南段' },
-  { pos: new THREE.Vector3(-5.54, -0.5,  0.0), rotY:  90, label:'西牆中央' },
-  { pos: new THREE.Vector3(-5.54, -0.5,  3.5), rotY:  90, label:'西牆南段' },
-  { pos: new THREE.Vector3(-1.5,  -0.5,  4.86), rotY: 180, label:'南牆西側' },
-  { pos: new THREE.Vector3( 0.5, -0.5, -5.8),  rotY:   0, label:'北牆角落' },
-];
-const SWITCH_COLORS=[0x00aaff,0xff4400,0x00ff88,0xff00cc,0xffcc00,0x00ffff];
-let lastSwitchPosIdx=-1;
-
-// 物品可以出現的位置
-// 物品位置 — 地板 Y=-2.30，全在房間安全範圍內
-// 地板 X:-6.30~6.97  Z:-6.52~6.63（縮 0.8 做邊距）
-const ITEM_POSITIONS=[
-  { pos: new THREE.Vector3( 0.0,  -2.30,  0.5),  label:'房間中央' },
-  { pos: new THREE.Vector3( 4.8,  -0.85,  0.6),  label:'書桌上' },     // 書桌桌面 top=-0.85
-  { pos: new THREE.Vector3( 1.5,  -2.30, -4.5),  label:'床邊' },
-  { pos: new THREE.Vector3(-1.5,  -2.30, -2.5),  label:'衣櫃旁' },
-  { pos: new THREE.Vector3(-4.5,  -2.30, -3.5),  label:'西北角落' },
-  { pos: new THREE.Vector3(-2.0,  -2.30,  3.8),  label:'南牆前方' },
-  { pos: new THREE.Vector3( 3.5,  -2.30,  3.5),  label:'東南角落' },
-  { pos: new THREE.Vector3( 0.0,  -2.30, -2.5),  label:'北牆前方' },
-  { pos: new THREE.Vector3(-4.0,   0.5,   4.0),  label:'西牆高櫃上' }, // for.2 頂部
-  { pos: new THREE.Vector3( 2.0,  -2.30,  1.5),  label:'房間中段' },
+const SWITCH_COLORS = [0x00aaff, 0xff4400, 0x00ff88, 0xff00cc, 0xffcc00];
+const SWITCH_DEFS_WALL = [
+  { pos: new THREE.Vector3( 0.5, -0.5, -3.15), rotY: 0, label: '北牆中央' },
+  { pos: new THREE.Vector3( 2.78, -0.5, 0.5), rotY: -90, label: '東牆' },
+  { pos: new THREE.Vector3(-5.58, -0.5, 0.5), rotY: 90, label: '西牆' },
+  { pos: new THREE.Vector3(-1.5, -0.5, 4.9), rotY: 180, label: '南牆' }
 ];
 
-// 隨機選一個不重複的開關定義
-function pickSwitchDef(){
-  let idx;
-  do { idx=Math.floor(Math.random()*SWITCH_DEFS_WALL.length); }
-  while(idx===lastSwitchPosIdx && SWITCH_DEFS_WALL.length>1);
-  lastSwitchPosIdx=idx;
-  return SWITCH_DEFS_WALL[idx];
-}
-
-// 生成一個新開關（貼牆放置）
-function spawnSwitch(){
-  if(switchGroup){ scene.remove(switchGroup); switchGroup=null; }
-
-  const def=pickSwitchDef();
-  const color=SWITCH_COLORS[Math.floor(Math.random()*SWITCH_COLORS.length)];
-  const g=new THREE.Group();
-
-  // 點光源（微弱，只標示位置）
-  const light=new THREE.PointLight(color, 0.6, 1.8, 2);
-  light.position.set(0, 0, 0.08);
-  g.add(light);
-
-  // 隱形 hitbox
-  const hitbox=new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.5, 0.3),
-    new THREE.MeshBasicMaterial({visible:false})
-  );
-  hitbox.name='hit';
-  g.add(hitbox);
-
-  // 貼牆定位 → 先設定 group
-  g.position.copy(def.pos);
-  g.rotation.y = def.rotY * Math.PI/180;
-  g.userData={activated:false, light, label:def.label};
-  scene.add(g);
-  switchGroup=g;
-
-  if(powerGltfCache){
-    const model=powerGltfCache.scene.clone(true);
-
-    // 精確旋轉：原始 Y=厚度(0~-16.6), Z=高度(0.7~52.7)
-    // rotation.x = +90°：Z→Y（高度變直立），Y→-Z（厚度突出牆外）✓
-    model.rotation.x = Math.PI / 2;
-    const sc = 0.12 / 52;   // 面板 ≈ 0.12 units（約4cm）
-    model.scale.setScalar(sc);
-
-    // 旋轉後：
-    //   X center = (-21.8+30.2)/2 * sc = -0.0134  → position.x = +0.0134
-    //   Y center = (0.7+52.7)/2   * sc = +0.0616  → position.y = -0.0616
-    //   Z range  = 0 ~ 16.6*sc = 0~0.038          → position.z = 0 (背面在Z=0貼牆)
-    model.position.set(0.013, -0.062, 0.001);
-
-    model.traverse(ch=>{
-      if(!ch.isMesh) return;
-      const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-      ms.forEach(mat=>{
-        mat.side=THREE.DoubleSide;
-        mat.emissive=new THREE.Color(color);
-        mat.emissiveIntensity=0.6;
-        mat.needsUpdate=true;
-      });
-    });
-    g.add(model);
-    console.log('Switch GLB loaded:', def.label);
-
-  } else {
-    // Fallback：扁平面板（XY 平面，貼牆）
-    const plate=new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.10, 0.015),
-      new THREE.MeshBasicMaterial({color:0xeeeeee})
-    );
-    plate.position.z=0.008;
-    g.add(plate);
-    const btn=new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 0.07, 0.02),
-      new THREE.MeshBasicMaterial({color})
-    );
-    btn.position.z=0.018;
-    g.add(btn);
-    console.log('Switch fallback:', def.label);
-  }
-
-  light.intensity=0.6;
-  console.log('Switch placed:', def.label, def.pos.x.toFixed(2), def.pos.y.toFixed(2), def.pos.z.toFixed(2));
-}
-
-// 在房間裡放一個物品（開燈時出現，關燈時由 removeCurrentItem 移除）
-function spawnItemInRoom(itemIdx){
-  removeCurrentItem(); // 先確保清掉舊的
-  const posIdx=Math.floor(Math.random()*ITEM_POSITIONS.length);
-  const posDef=ITEM_POSITIONS[posIdx];
-  const pos=posDef.pos.clone();
-  console.log('Item spawn:',posDef.label);
-  const item=ITEMS[itemIdx];
-  const itemColor=parseInt((item.color?item.color[0]||'#330000':'#330000').replace('#',''),16);
-  const g=new THREE.Group();
-  g.position.copy(pos);
-
-  // 近距離偵測用碰撞體
-  const prox=new THREE.Mesh(new THREE.BoxGeometry(2.5,2.5,2.5),new THREE.MeshBasicMaterial({visible:false}));
-  prox.name='itemProx'; prox.userData={itemIdx,posIdx,itemName:item.name,modelName:item.modelName}; g.add(prox);
-
-  // 小發光底環（不顯眼，只標示位置）
-  const ring=new THREE.Mesh(
-    new THREE.TorusGeometry(0.2,0.025,8,24),
-    new THREE.MeshBasicMaterial({color:itemColor,transparent:true,opacity:0.6})
-  );
-  ring.rotation.x=Math.PI/2; ring.position.y=0.01; g.add(ring);
-
-  // 微弱點光源
-  const glow=new THREE.PointLight(itemColor,0.9,3.5,1.8);
-  glow.position.y=0.4; g.add(glow);
-
-  scene.add(g);
-  currentItem=g;
-
-  if(item.glbFile && typeof THREE.GLTFLoader!=='undefined'){
-    new THREE.GLTFLoader().load(item.glbFile,
-      gltf=>{
-        const model=gltf.scene;
-        // 縮放到合適大小
-        const bbox=new THREE.Box3().setFromObject(model);
-        const size=bbox.getSize(new THREE.Vector3());
-        const sc=0.75/Math.max(size.x,size.y,size.z);
-        model.scale.setScalar(sc);
-        // 重新計算底部，貼合地板（group.position.y 已是地板高）
-        bbox.setFromObject(model);
-        model.position.set(
-          -(bbox.min.x+bbox.max.x)/2,  // X 置中
-          -bbox.min.y,                   // 底部貼地（y=0 相對於 group）
-          -(bbox.min.z+bbox.max.z)/2   // Z 置中
-        );
-        model.traverse(ch=>{
-          if(ch.isMesh){
-            ch.castShadow=true;
-            const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-            ms.forEach(mat=>{ if(mat.roughness!==undefined) mat.roughness=0.8; });
-          }
-        });
-        g.add(model);
-        console.log('Item GLB loaded:',item.name,'scale:',sc.toFixed(3));
-      },
-      null,
-      err=>{ console.warn('Item GLB failed:',item.name); addCanvasPlane(g,item); }
-    );
-  } else {
-    addCanvasPlane(g,item);
-  }
-}
-
-function addCanvasPlane(g, item){
-  if(!item.draw) return;
-  const cvs=document.createElement('canvas'); cvs.width=256; cvs.height=256;
-  item.draw(cvs.getContext('2d'),256,256);
-  const plane=new THREE.Mesh(
-    new THREE.PlaneGeometry(0.85,0.85),
-    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cvs),side:THREE.DoubleSide,transparent:true})
-  );
-  plane.position.y=0.5;
-  // 讓圖板朝向玩家（始終面向 XZ 平面）
-  plane.userData.billboard=true;
-  g.add(plane);
-}
+let scene, camera, renderer, clock, switchGroup, currentItem, xrSession;
+let isLocked = false, gameActive = false, yaw = 0, pitch = 0;
+const RC = new THREE.Raycaster(); RC.far = 10;
+const keys = {};
 
 // ══════════════════════════════════════════════════════════════════
-//  ATMOSPHERE  (no flashlight)
+//  初始化
 // ══════════════════════════════════════════════════════════════════
-function buildAtmosphere(){
-  window.ambientLight=new THREE.AmbientLight(0x120e06, 0.25);
-  scene.add(window.ambientLight);
+function init() {
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050302, 0.05);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 0, 2);
 
-  ceilingLight=new THREE.PointLight(0xcc6628,0.8,16,1.8);
-  ceilingLight.position.set(0,2.3,0); ceilingLight.castShadow=true;
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.xr.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+  
+  // 燈光
+  const ambient = new THREE.AmbientLight(0x120e06, 0.3);
+  scene.add(ambient);
+  
+  const ceilingLight = new THREE.PointLight(0xcc6628, 0.6, 15);
+  ceilingLight.position.set(0, 2, 0);
   scene.add(ceilingLight);
 
-  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0xaa6030}));
-  bulb.position.copy(ceilingLight.position); scene.add(bulb);
+  window.addEventListener('resize', onWindowResize);
+  document.addEventListener('keydown', e => keys[e.code] = true);
+  document.addEventListener('keyup', e => keys[e.code] = false);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mousedown', () => { if(gameActive && isLocked) checkInteraction(); });
+  document.getElementById('diary-screen').onclick = closeDiary;
 
-  window.fill1=new THREE.PointLight(0x3a2010,0.2,12,2); fill1.position.set(-4,1.5,-5); scene.add(fill1);
-  window.fill2=new THREE.PointLight(0x3a2010,0.2,12,2); fill2.position.set( 4,1.5, 4); scene.add(fill2);
-
-  buildVRReticle();
-
-  // Dust particles
-  const pa=new Float32Array(160*3);
-  for(let i=0;i<160;i++){pa[i*3]=(Math.random()-.5)*9;pa[i*3+1]=(Math.random()-.5)*4;pa[i*3+2]=(Math.random()-.5)*13;}
-  const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(pa,3));
-  scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x1a1a1a,size:.025,transparent:true,opacity:.6})));
+  loadAssets();
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  RENDER LOOP
-// ══════════════════════════════════════════════════════════════════
-function render(){
-  try{
-  const dt=clock.getDelta(); t+=dt;
-
-  // 天花板柔和閃爍（純 sin，無隨機）
-  if(ceilingLight && !sceneBright){
-    ceilingLight.intensity=0.55+Math.sin(t*1.1)*0.08+Math.sin(t*3.7)*0.04;
-  }
-
-  // (switch pulse moved above)
-
-  // 桌機 WASD 移動
-  if(gameActive&&isLocked&&!xrSession){
-    const spd=3.5*dt;
-    const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
-    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
-    if(keys['KeyW']||keys['ArrowUp'])   camera.position.addScaledVector(fwd,spd);
-    if(keys['KeyS']||keys['ArrowDown']) camera.position.addScaledVector(fwd,-spd);
-    if(keys['KeyA']||keys['ArrowLeft']) camera.position.addScaledVector(right,-spd);
-    if(keys['KeyD']||keys['ArrowRight'])camera.position.addScaledVector(right,spd);
-  }
-
-  // VR 移動（左搖桿）
-  if(gameActive && xrSession){
-    const session=renderer.xr.getSession();
-    if(session){
-      for(const src of session.inputSources){
-        if(!src.gamepad) continue;
-        const axes=src.gamepad.axes;
-        // 左手控制器 handedness=left：axes[2]=左右, axes[3]=前後
-        if(src.handedness==='left' && (Math.abs(axes[2])>0.15||Math.abs(axes[3])>0.15)){
-          const cam=renderer.xr.getCamera(camera);
-          const dir=new THREE.Vector3();
-          cam.getWorldDirection(dir); dir.y=0; dir.normalize();
-          const right2=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0));
-          const spd=2.5*dt;
-          camera.position.addScaledVector(dir,  -axes[3]*spd);
-          camera.position.addScaledVector(right2, axes[2]*spd);
-        }
-        // 右手A鍵（buttons[4]）= 點擊開關
-        if(src.handedness==='right'){
-          const btnA=src.gamepad.buttons[4];
-          if(btnA && btnA.pressed && !src.gamepad._aWasPressed){
-            const sw=getAimedSwitch();
-            if(sw) activateSwitch(sw);
-          }
-          if(src.gamepad.buttons[4]) src.gamepad._aWasPressed=src.gamepad.buttons[4].pressed;
-        }
-      }
-    }
-
-    // VR 凝視：準星對準開關 1.5 秒自動觸發
-    const sw=getAimedSwitch();
-    if(sw){
-      vrGazeTimer+=dt;
-      if(vrGazeTimer>=1.5){ vrGazeTimer=0; activateSwitch(sw); }
-    } else { vrGazeTimer=0; }
-
-    // 更新 VR 準星位置（在相機前方 2m）
-    if(vrReticle){
-      const cam=renderer.xr.getCamera(camera);
-      const dir=new THREE.Vector3(); cam.getWorldDirection(dir);
-      vrReticle.position.copy(cam.position).addScaledVector(dir,2.0);
-      vrReticle.lookAt(cam.position);
-      // 凝視進度變紅
-      const prog=vrGazeTimer/1.5;
-      vrReticle.children.forEach(m=>m.material.color.setRGB(1,1-prog*0.8,1-prog*0.8));
-    }
-  }
-  // Joystick
-  if(gameActive&&(joy.x||joy.y)){
-    const spd=3*dt;
-    const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
-    const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
-    camera.position.addScaledVector(fwd,-joy.y*spd);
-    camera.position.addScaledVector(right,joy.x*spd);
-  }
-  camera.position.x=Math.max(-5.0,Math.min(2.6,camera.position.x));
-  camera.position.z=Math.max(-2.8,Math.min(4.6,camera.position.z));
-
-  // Head bob when moving
-  const isMoving=(keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']||joy.x||joy.y);
-  camera.position.y = isMoving ? Math.sin(t*7)*0.04 : 0;
-
-  // 亮場保持穩定（不閃爍）
-
-  // Billboard：canvas 圖板面向玩家
-  if(currentItem){
-    currentItem.children.forEach(ch=>{
-      if(ch.userData&&ch.userData.billboard) ch.lookAt(camera.position);
+function loadAssets() {
+  const loader = new THREE.GLTFLoader();
+  document.getElementById('loader').style.display = 'flex';
+  
+  // 載入房間
+  loader.load('https://raw.githubusercontent.com/gp01002/room01/main/room.glb', gltf => {
+    scene.add(gltf.scene);
+    // 載入開關模型
+    loader.load('https://raw.githubusercontent.com/gp01002/room01/main/dirty_light_switch.glb', powerGltf => {
+      window.powerGltfCache = powerGltf;
+      document.getElementById('loader').style.display = 'none';
+      spawnSwitch();
+      checkVR();
+      renderer.setAnimationLoop(render);
     });
-  }
-
-  // 開關脈衝
-  if(switchGroup && !switchGroup.userData.activated){
-    // 開關光源輕微脈衝
-    if(switchGroup.userData.light)
-      switchGroup.userData.light.intensity=0.6+Math.sin(t*2)*0.3;
-  }
-
-  // 物品近距離提示（2.5單位內）
-  if(gameActive && sceneBright && currentItem){
-    const d=camera.position.distanceTo(currentItem.position);
-    const hintEl=document.getElementById('item-hint');
-    const prox=currentItem.children.find(c=>c.name==='itemProx');
-    if(d<2.5 && prox && hintEl){
-      hintEl.innerHTML='<b>'+prox.userData.itemName+'</b><br><span>'+prox.userData.modelName+'</span>';
-      hintEl.classList.add('show');
-    } else if(hintEl){
-      hintEl.classList.remove('show');
-    }
-  } else {
-    const h=document.getElementById('item-hint');
-    if(h) h.classList.remove('show');
-  }
-
-  // Crosshair aim
-  if(gameActive){
-    const sw=getAimedSwitch();
-    document.getElementById('crosshair').className=sw?'aimed':'';
-    document.getElementById('aim-hint').className=sw?'show':'';
-    if(sw&&sw.userData.label){
-      document.getElementById('aim-hint').textContent='[ 點 擊 ] 啟 動 — '+sw.userData.label;
-    }
-
-    // (movement indicator removed)
-  }
-
-  renderer.render(scene,camera);
-  }catch(err){ console.error('RENDER ERROR:',err); }
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  RAYCAST
-// ══════════════════════════════════════════════════════════════════
-function getAimedSwitch(){
-  RC.setFromCamera({x:0,y:0},camera);
-  if(!switchGroup||switchGroup.userData.activated) return null;
-  const hitbox=switchGroup.children.find(c=>c.name==='hit');
-  if(!hitbox) return null;
-  const hits=RC.intersectObjects([hitbox],false);
-  return hits.length ? switchGroup : null;
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  INPUT
-// ══════════════════════════════════════════════════════════════════
-function onMouseMove(e){
-  if(!isLocked||!gameActive) return;
-  yaw-=e.movementX*.0018; pitch-=e.movementY*.0018;
-  pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));
-  camera.rotation.y=yaw; camera.rotation.x=pitch;
-}
-function onClick(){
-  if(!gameActive) return;
-  if(!isLocked){ renderer.domElement.requestPointerLock(); return; }
-  const sw=getAimedSwitch(); if(sw) activateSwitch(sw);
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  ACTIVATE SWITCH
-// ══════════════════════════════════════════════════════════════════
-function activateSwitch(sw){
-  sw.userData.activated=true;
-  // 關掉脈衝光源，保留暗紅殘影讓玩家知道已按過
-  if(sw.userData.light){
-    sw.userData.light.color.setHex(0x330000);
-    sw.userData.light.intensity=0.15;
-    sw.userData.light.distance=0.8;
-  }
-  // 已啟動的開關模型變暗紅
-  sw.traverse(ch=>{
-    if(ch.isMesh){
-      const ms=Array.isArray(ch.material)?ch.material:[ch.material];
-      ms.forEach(m=>{ if(m.emissive) m.emissive.setHex(0x220000); m.emissiveIntensity=0.2; });
-    }
   });
-  flashScreen(); playSound();
-
-  // 選物品
-  const available=ITEMS.map((_,i)=>i).filter(i=>!usedItemIdxs.includes(i));
-  const idx = available.length ? available[Math.floor(Math.random()*available.length)] : Math.floor(Math.random()*ITEMS.length);
-  usedItemIdxs.push(idx);
-  if(usedItemIdxs.length>=ITEMS.length) usedItemIdxs=[];
-
-  // 燈亮 + 出現一個物品
-  brightenScene();
-  spawnItemInRoom(idx);
-
-  // 5秒後：關燈 → 移除物品 → 顯示日記
-  if(lightTimer) clearTimeout(lightTimer);
-  lightTimer=setTimeout(()=>{
-    darkenScene();
-    removeCurrentItem();
-    // 顯示對應日記（0~9 對應 diary_01~10）
-    setTimeout(()=>showDiary(idx), 600);
-  }, 5000);
-}
-
-// 用 tween 平滑過渡亮暗
-let targetBrightness=0;
-function brightenScene(){
-  sceneBright=true;
-  targetBrightness=1;
-  if(window.ambientLight) window.ambientLight.intensity=1.8;
-  if(ceilingLight){ ceilingLight.intensity=2.8; ceilingLight.color.setHex(0xfff0d0); }
-  if(window.fill1){ fill1.intensity=1.5; fill1.color.setHex(0xffd890); }
-  if(window.fill2){ fill2.intensity=1.5; fill2.color.setHex(0xffd890); }
-}
-
-function darkenScene(){
-  sceneBright=false;
-  targetBrightness=0;
-  if(window.ambientLight) window.ambientLight.intensity=0.25;
-  if(ceilingLight){ ceilingLight.intensity=0.55; ceilingLight.color.setHex(0xcc6628); }
-  if(window.fill1){ fill1.intensity=0.15; fill1.color.setHex(0x3a2010); }
-  if(window.fill2){ fill2.intensity=0.15; fill2.color.setHex(0x3a2010); }
-}
-
-function removeCurrentItem(){
-  if(currentItem){ scene.remove(currentItem); currentItem=null; }
-  // 也清掉 item-hint
-  const h=document.getElementById('item-hint');
-  if(h) h.classList.remove('show');
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  REVEAL ITEM
+//  遊戲邏輯
 // ══════════════════════════════════════════════════════════════════
-// （物品提示改為靠近顯示）
-function closeReveal(){ document.getElementById('reveal-screen').classList.remove('show'); }
+function spawnSwitch() {
+  if(switchGroup) scene.remove(switchGroup);
+  const def = SWITCH_DEFS_WALL[Math.floor(Math.random() * SWITCH_DEFS_WALL.length)];
+  const color = SWITCH_COLORS[Math.floor(Math.random() * SWITCH_COLORS.length)];
+  
+  switchGroup = new THREE.Group();
+  switchGroup.position.copy(def.pos);
+  switchGroup.rotation.y = def.rotY * (Math.PI / 180);
+  switchGroup.userData = { activated: false, label: def.label };
 
-// ══ 日記系統 ══════════════════════════════════════════════════
-function showDiary(itemIdx){
-  const imgName = DIARY_IMGS[itemIdx % DIARY_IMGS.length];
-  const imgEl = document.getElementById('diary-img');
-  const screen = document.getElementById('diary-screen');
-  imgEl.src = DIARY_BASE + imgName;
-  imgEl.onerror = ()=>{ imgEl.src=''; closeDiary(); }; // 圖片不存在就跳過
-  screen.classList.add('show');
-  if(isLocked) document.exitPointerLock();
+  // Hitbox
+  const hb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.2), new THREE.MeshBasicMaterial({ visible: false }));
+  hb.name = "switch_hitbox";
+  switchGroup.add(hb);
+
+  if(window.powerGltfCache) {
+    const model = window.powerGltfCache.scene.clone();
+    model.rotation.x = Math.PI/2;
+    model.scale.setScalar(0.002);
+    model.traverse(node => {
+      if(node.isMesh) {
+        node.material = node.material.clone();
+        node.material.emissive.setHex(color);
+        node.material.emissiveIntensity = 2;
+      }
+    });
+    switchGroup.add(model);
+  }
+  
+  const lp = new THREE.PointLight(color, 0.8, 2);
+  lp.position.set(0,0,0.1);
+  switchGroup.add(lp);
+  
+  scene.add(switchGroup);
 }
 
-function closeDiary(){
+function checkInteraction() {
+  RC.setFromCamera({x:0, y:0}, camera);
+  const hits = RC.intersectObjects(scene.children, true);
+  for(let hit of hits) {
+    if(hit.object.name === "switch_hitbox") {
+      activateSwitch();
+      break;
+    }
+  }
+}
+
+function activateSwitch() {
+  if(switchGroup.userData.activated) return;
+  switchGroup.userData.activated = true;
+  
+  flashEffect();
+  const idx = Math.floor(Math.random() * ITEMS.length);
+  showDiary(idx);
+}
+
+function showDiary(idx) {
+  const ds = document.getElementById('diary-screen');
+  const di = document.getElementById('diary-img');
+  di.src = `https://raw.githubusercontent.com/gp01002/room01/main/diary_0${(idx%9)+1}.png`;
+  ds.classList.add('show');
+  if(document.pointerLockElement) document.exitPointerLock();
+}
+
+function closeDiary() {
   document.getElementById('diary-screen').classList.remove('show');
-  setTimeout(()=>spawnSwitch(), 400);
+  spawnSwitch();
   if(!xrSession) renderer.domElement.requestPointerLock();
 }
 
-
-
-// 倒數移除：改由 activateSwitch 內的 setTimeout 處理
-
 // ══════════════════════════════════════════════════════════════════
-//  SOUND
+//  VR 與 渲染
 // ══════════════════════════════════════════════════════════════════
-function playSound(){
-  try{
-    const ac=new(window.AudioContext||window.webkitAudioContext)();
-    [[60,.06,'sawtooth',1.5,30],[900,.025,'sine',.25,200]].forEach(([f,g,tp,d,f2])=>{
-      const o=ac.createOscillator(),gn=ac.createGain();
-      o.type=tp;o.frequency.setValueAtTime(f,ac.currentTime);o.frequency.exponentialRampToValueAtTime(f2,ac.currentTime+d);
-      gn.gain.setValueAtTime(g,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
-      o.connect(gn);gn.connect(ac.destination);o.start();o.stop(ac.currentTime+d);
-    });
-  }catch(e){}
-}
-function flashScreen(){
-  const f=document.getElementById('flash');
-  f.style.transition='none';f.style.opacity='.35';
-  requestAnimationFrame(()=>{f.style.transition='opacity .5s';f.style.opacity='0';});
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  VR
-// ══════════════════════════════════════════════════════════════════
-function checkVR(){
-  const btn=document.getElementById('vr-btn');
-  if(!navigator.xr){ btn.textContent='瀏 覽 器 不 支 援 VR'; return; }
-  navigator.xr.isSessionSupported('immersive-vr').then(ok=>{
-    if(ok){
-      btn.textContent='進 入 VR（Meta Quest）';
+async function checkVR() {
+  const btn = document.getElementById('vr-btn');
+  if(navigator.xr) {
+    const supported = await navigator.xr.isSessionSupported('immersive-vr');
+    if(supported) {
+      btn.textContent = "進入 VR 模式";
       btn.classList.remove('dim');
-      btn.onclick=()=>enterVR();
-    } else {
-      btn.textContent='裝 置 不 支 援 VR';
+      btn.onclick = enterVR;
     }
-  });
+  }
 }
 
-async function enterVR(){
-  try{
-    renderer.xr.enabled=true;
-    // 申請 local-floor 讓 Quest 能室內走動
-    const session=await navigator.xr.requestSession('immersive-vr',{
-      requiredFeatures:['local-floor'],
-      optionalFeatures:['bounded-floor','hand-tracking']
-    });
-    xrSession=session;
-    renderer.xr.setSession(session);
+async function enterVR() {
+  xrSession = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] });
+  renderer.xr.setSession(xrSession);
+  document.getElementById('start-screen').style.display = 'none';
+  gameActive = true;
+}
 
-    // 建立控制器（左0右1）
-    for(let i=0;i<2;i++){
-      const ctrl=renderer.xr.getController(i);
-      ctrl.userData.index=i;
-      scene.add(ctrl);
-      vrControllers.push(ctrl);
+function render() {
+  const dt = clock.getDelta();
+  
+  if(gameActive && !xrSession && isLocked) {
+    const speed = 3 * dt;
+    if(keys['KeyW']) camera.position.addScaledVector(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), speed);
+    if(keys['KeyS']) camera.position.addScaledVector(new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)), -speed);
+    if(keys['KeyA']) camera.position.addScaledVector(new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), -speed);
+    if(keys['KeyD']) camera.position.addScaledVector(new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)), speed);
+  }
+
+  // VR 射線互動 (右手 Trigger)
+  if(xrSession) {
+    const session = renderer.xr.getSession();
+    for(const source of session.inputSources) {
+      if(source.gamepad && source.gamepad.buttons[0].pressed) {
+        checkInteraction(); // VR 模式下檢測
+      }
     }
+  }
 
-    session.addEventListener('end',()=>{
-      xrSession=null; vrControllers=[];
-      renderer.xr.enabled=false;
-      document.getElementById('start-screen').style.display='flex';
-      gameActive=false;
-    });
+  // 準星與提示
+  RC.setFromCamera({x:0, y:0}, camera);
+  const hits = RC.intersectObjects(scene.children, true);
+  const isAiming = hits.some(h => h.object.name === "switch_hitbox");
+  document.getElementById('crosshair').className = isAiming ? 'aimed' : '';
+  document.getElementById('aim-hint').className = isAiming ? 'show' : '';
 
-    // 進 VR 後隱藏開始畫面
-    document.getElementById('start-screen').style.display='none';
-    gameActive=true;
-  }catch(e){ console.error('VR error',e); }
+  renderer.render(scene, camera);
 }
 
-// VR 凝視準星（3D 十字，跟著相機方向）
-let vrReticle=null;
-function buildVRReticle(){
-  const mat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.8});
-  const g=new THREE.Group();
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.02,0.002,0.002),mat));
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.002,0.02,0.002),mat));
-  vrReticle=g;
-  scene.add(vrReticle);
-}
+// 工具函數
+function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+function onMouseMove(e) { if(!isLocked) return; yaw -= e.movementX * 0.002; pitch -= e.movementY * 0.002; pitch = Math.max(-1.5, Math.min(1.5, pitch)); camera.rotation.order = 'YXZ'; camera.rotation.y = yaw; camera.rotation.x = pitch; }
+function startGame() { document.getElementById('start-screen').style.display = 'none'; renderer.domElement.requestPointerLock(); gameActive = true; }
+function flashEffect() { const f = document.getElementById('flash'); f.style.opacity = '1'; setTimeout(() => f.style.opacity = '0', 100); }
+document.addEventListener('pointerlockchange', () => isLocked = document.pointerLockElement === renderer.domElement);
 
-// ══════════════════════════════════════════════════════════════════
-//  MOBILE
-// ══════════════════════════════════════════════════════════════════
-function setupTouch(){
-  if(!('ontouchstart' in window)) return;
-  document.getElementById('joy-zone').style.display='block';
-  const base=document.getElementById('joy-base'),thumb=document.getElementById('joy-thumb');
-  const R=45; let jc={x:0,y:0};
-  base.addEventListener('touchstart',e=>{e.preventDefault();const tk=e.touches[0];jc={x:tk.clientX,y:tk.clientY};},{passive:false});
-  base.addEventListener('touchmove',e=>{e.preventDefault();const tk=e.touches[0];let dx=tk.clientX-jc.x,dy=tk.clientY-jc.y;const l=Math.sqrt(dx*dx+dy*dy);if(l>R){dx=dx/l*R;dy=dy/l*R;}joy.x=dx/R;joy.y=dy/R;thumb.style.left=(45+dx)+'px';thumb.style.top=(45+dy)+'px';thumb.style.transform='none';},{passive:false});
-  base.addEventListener('touchend',e=>{e.preventDefault();joy.x=0;joy.y=0;thumb.style.left='50%';thumb.style.top='50%';thumb.style.transform='translate(-50%,-50%)';},{passive:false});
-  let lt=null,ll={x:0,y:0};
-  renderer.domElement.addEventListener('touchstart',e=>{for(const tk of e.changedTouches)if(tk.clientX>innerWidth/2&&!lt){lt=tk.identifier;ll={x:tk.clientX,y:tk.clientY};}});
-  renderer.domElement.addEventListener('touchmove',e=>{for(const tk of e.changedTouches)if(tk.identifier===lt){yaw-=(tk.clientX-ll.x)*.003;pitch-=(tk.clientY-ll.y)*.003;pitch=Math.max(-Math.PI/2.1,Math.min(Math.PI/2.1,pitch));camera.rotation.y=yaw;camera.rotation.x=pitch;ll={x:tk.clientX,y:tk.clientY};}});
-  renderer.domElement.addEventListener('touchend',e=>{for(const tk of e.changedTouches){if(tk.identifier===lt)lt=null;if(gameActive&&tk.clientX>innerWidth/2){const sw=getAimedSwitch();if(sw)activateSwitch(sw);}}});
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  GAME FLOW
-// ══════════════════════════════════════════════════════════════════
-function startGame(){
-  document.getElementById('start-screen').style.display='none';
-  gameActive=true;
-  console.log('Game started, switchGroup=',!!switchGroup);
-  renderer.domElement.requestPointerLock();
-}
-
-initThree();
+init();
 </script>
 </body>
 </html>
