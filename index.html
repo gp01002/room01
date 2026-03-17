@@ -132,7 +132,7 @@ let switchGroup=null, currentItem=null;
 let sceneBright=false, lightTimer=null;
 let usedItemIdxs=[], lastSwIdx=-1;
 let powerCache=null, skipRequested=false, t=0;
-let xrSession=null, vrGazeTimer=0, vrReticle=null;
+let xrSession=null, vrGazeTimer=0, vrReticle=null, cameraRig=null;
 const RC = new THREE.Raycaster(); RC.far=10;
 const keys={};
 document.addEventListener('keydown',e=>keys[e.code]=true);
@@ -146,8 +146,12 @@ function initThree(){
   scene.fog = new THREE.FogExp2(0x050302, 0.03);
 
   camera = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.05, 60);
-  camera.position.set(0, 0, 2);
   camera.rotation.order = 'YXZ';
+
+  // VR 用：cameraRig 控制玩家位置，camera 掛在其下
+  cameraRig = new THREE.Group();
+  cameraRig.position.set(0, 0, 2);
+  cameraRig.add(camera);
 
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -157,6 +161,7 @@ function initThree(){
   document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
   clock = new THREE.Clock();
+  scene.add(cameraRig);
 
   window.addEventListener('resize',()=>{
     camera.aspect=innerWidth/innerHeight;
@@ -318,10 +323,12 @@ function spawnSwitch(){
     // 原始 Y=厚度(-16.6~0), Z=高度(0.7~52.7)
     // +90° 後：Z→Y（直立）, Y→-Z（突出牆外）
     model.rotation.x = Math.PI/2;
-    const sc = 0.12/52;
+    const sc = 0.12/52;  // 面板約4cm
     model.scale.setScalar(sc);
-    // 精確置中偏移（由頂點數據計算）
-    model.position.set(0.013, -0.062, 0.001);
+    // 精確偏移（由原始頂點數據計算）:
+    // 旋轉後 center=(4.2,-26.7,-8.3) * sc → position = -center
+    // Z: min=-16.6*sc=-0.038 → +0.038 讓背面貼牆(z=0)突出朝玩家
+    model.position.set(-0.010, 0.062, 0.038);
     model.traverse(ch=>{
       if(!ch.isMesh) return;
       const ms=Array.isArray(ch.material)?ch.material:[ch.material];
@@ -375,7 +382,9 @@ function spawnSwitch(){
 
 function getAimedSwitch(){
   if(!switchGroup||switchGroup.userData.activated) return null;
-  RC.setFromCamera({x:0,y:0}, camera);
+  // VR 模式用 XRCamera，桌機用一般 camera
+  const cam = (xrSession && renderer.xr) ? renderer.xr.getCamera(camera) : camera;
+  RC.setFromCamera({x:0,y:0}, cam);
   const hb = switchGroup.children.find(c=>c.name==='hit');
   if(!hb) return null;
   return RC.intersectObjects([hb],false).length ? switchGroup : null;
@@ -592,23 +601,22 @@ function render(){
   if(!sceneBright && ceilingLight)
     ceilingLight.intensity=0.50+Math.sin(t*1.1)*.07+Math.sin(t*4.3)*.03;
 
-  // 桌機移動
+  // 桌機移動（移動 cameraRig）
   if(gameActive && isLocked && !xrSession){
     const spd=3*dt;
     const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
     const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
-    if(keys['KeyW']||keys['ArrowUp'])    camera.position.addScaledVector(fwd,spd);
-    if(keys['KeyS']||keys['ArrowDown'])  camera.position.addScaledVector(fwd,-spd);
-    if(keys['KeyA']||keys['ArrowLeft'])  camera.position.addScaledVector(right,-spd);
-    if(keys['KeyD']||keys['ArrowRight']) camera.position.addScaledVector(right,spd);
-    // 頭部搖晃
+    if(keys['KeyW']||keys['ArrowUp'])    cameraRig.position.addScaledVector(fwd,spd);
+    if(keys['KeyS']||keys['ArrowDown'])  cameraRig.position.addScaledVector(fwd,-spd);
+    if(keys['KeyA']||keys['ArrowLeft'])  cameraRig.position.addScaledVector(right,-spd);
+    if(keys['KeyD']||keys['ArrowRight']) cameraRig.position.addScaledVector(right,spd);
     const moving=keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD'];
-    camera.position.y = moving ? Math.sin(t*7)*0.035 : 0;
+    cameraRig.position.y = moving ? Math.sin(t*7)*0.035 : 0;
   }
 
   // 移動邊界
-  camera.position.x=Math.max(-5.2, Math.min(2.5, camera.position.x));
-  camera.position.z=Math.max(-2.8, Math.min(4.5, camera.position.z));
+  cameraRig.position.x=Math.max(-5.2, Math.min(2.5, cameraRig.position.x));
+  cameraRig.position.z=Math.max(-2.8, Math.min(4.5, cameraRig.position.z));
 
   // VR 搖桿移動 + 準星互動
   if(gameActive && xrSession){
@@ -620,11 +628,16 @@ function render(){
         if(src.handedness==='left'){
           const ax=src.gamepad.axes, spd=2.5*dt;
           if(Math.abs(ax[2])>.15||Math.abs(ax[3])>.15){
-            const cam=renderer.xr.getCamera(camera);
-            const dir=new THREE.Vector3(); cam.getWorldDirection(dir); dir.y=0; dir.normalize();
+            // VR: 取 XRCamera 朝向，移動 cameraRig
+            const xrcam=renderer.xr.getCamera(camera);
+            const dir=new THREE.Vector3();
+            xrcam.getWorldDirection(dir); dir.y=0; dir.normalize();
             const rt=new THREE.Vector3().crossVectors(dir,new THREE.Vector3(0,1,0));
-            camera.position.addScaledVector(dir,-ax[3]*spd);
-            camera.position.addScaledVector(rt, ax[2]*spd);
+            cameraRig.position.addScaledVector(dir,-ax[3]*spd);
+            cameraRig.position.addScaledVector(rt, ax[2]*spd);
+            // 邊界限制
+            cameraRig.position.x=Math.max(-5.2,Math.min(2.5,cameraRig.position.x));
+            cameraRig.position.z=Math.max(-2.8,Math.min(4.5,cameraRig.position.z));
           }
         }
         // 右手：Trigger(0) 或 A鍵(4) 啟動開關
@@ -645,10 +658,10 @@ function render(){
     else vrGazeTimer=0;
     // 更新 VR 準星
     if(vrReticle){
-      const cam=renderer.xr.getCamera(camera);
-      const dir=new THREE.Vector3(); cam.getWorldDirection(dir);
-      vrReticle.position.copy(cam.position).addScaledVector(dir,1.8);
-      vrReticle.lookAt(cam.position);
+      const xrcam=renderer.xr.getCamera(camera);
+      const dir=new THREE.Vector3(); xrcam.getWorldDirection(dir);
+      vrReticle.position.copy(xrcam.position).addScaledVector(dir,1.8);
+      vrReticle.lookAt(xrcam.position);
       const p=vrGazeTimer/1.5;
       vrReticle.children.forEach(m=>m.material.color.setRGB(1,1-p*.85,1-p*.85));
     }
