@@ -158,14 +158,19 @@ const ITEMS = [
 ];
 
 // 開關貼牆位置（已精確對齊牆面 + 0.12 偏移）
+// 精確牆面座標：北 Z=-3.21  東 X=2.85  西 X=-5.66  南 Z=4.98
+// Y=-0.5 (腰部高度)  各牆至少 2 個位置
 const SW_DEFS = [
-  { p:[ 0.5, -0.5,-3.09], ry:  0, l:'北牆中央' },
-  { p:[-3.5, -0.5,-3.09], ry:  0, l:'北牆西側' },
-  { p:[ 2.61,-0.5, -2.0], ry:-90, l:'東牆北段' },
-  { p:[ 2.61,-0.5,  2.0], ry:-90, l:'東牆南段' },
-  { p:[-5.42,-0.5,  0.0], ry: 90, l:'西牆中央' },
-  { p:[-5.42,-0.5,  3.0], ry: 90, l:'西牆南段' },
-  { p:[-1.5, -0.5, 4.74], ry:180, l:'南牆西側' },
+  { p:[ 1.0, -0.5,-3.21], ry:  0, l:'北牆右' },
+  { p:[-2.0, -0.5,-3.21], ry:  0, l:'北牆左' },
+  { p:[ 2.85,-0.5, -3.0], ry:-90, l:'東牆北' },
+  { p:[ 2.85,-0.5,  1.0], ry:-90, l:'東牆中' },
+  { p:[ 2.85,-0.5,  3.5], ry:-90, l:'東牆南' },
+  { p:[-5.66,-0.5, -1.5], ry: 90, l:'西牆北' },
+  { p:[-5.66,-0.5,  1.5], ry: 90, l:'西牆中' },
+  { p:[-5.66,-0.5,  3.5], ry: 90, l:'西牆南' },
+  { p:[-2.5, -0.5, 4.98], ry:180, l:'南牆左' },
+  { p:[ 0.5, -0.5, 4.98], ry:180, l:'南牆右' },
 ];
 const SW_COLORS = [0x00aaff,0xff4400,0x00ff88,0xff00cc,0xffcc00];
 
@@ -721,15 +726,79 @@ function removeFloatingNote(){
 function showEnding(){
   removeFloatingNote();
   if(isLocked) document.exitPointerLock();
-  const el=document.getElementById('ending-screen');
-  el.style.display='flex';
-  el.onclick=()=>restartGame();
+
+  if(xrSession){
+    // VR 模式：建立 3D 全螢幕面板在玩家面前
+    showEndingVR();
+  } else {
+    // 桌機/手機模式：HTML overlay
+    const el=document.getElementById('ending-screen');
+    el.style.display='flex';
+    el.onclick=()=>restartGame();
+  }
+}
+
+let vrEndingMesh=null;
+function showEndingVR(){
+  // 取得結局圖片的 texture（從已嵌入的 img）
+  const imgEl=document.getElementById('ending-img');
+  const tex=new THREE.Texture(imgEl);
+  tex.needsUpdate=true;
+
+  // 建立大型面板放在玩家正前方 1.5m
+  const plane=new THREE.Mesh(
+    new THREE.PlaneGeometry(1.6, 1.2),
+    new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide, transparent:true})
+  );
+
+  const xrcam=renderer.xr.getCamera(camera);
+  const dir=new THREE.Vector3(); xrcam.getWorldDirection(dir);
+  plane.position.copy(xrcam.position).addScaledVector(dir, 1.5);
+  plane.lookAt(xrcam.position);
+
+  // 加提示文字 plane
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=80;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='rgba(0,0,0,0)'; ctx.clearRect(0,0,512,80);
+  ctx.fillStyle='#331100'; ctx.font='22px Courier New'; ctx.textAlign='center';
+  ctx.fillText('— 凝視此處 3 秒重新開始 —', 256, 48);
+  const hint=new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 0.22),
+    new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true,side:THREE.DoubleSide})
+  );
+  hint.position.copy(plane.position);
+  hint.position.y -= 0.72;
+  hint.lookAt(xrcam.position);
+
+  scene.add(plane); scene.add(hint);
+  vrEndingMesh={plane,hint};
+
+  // VR 結局：凝視 3 秒重新開始
+  let gazeTime=0;
+  const origLoop=renderer.xr.getSession().requestAnimationFrame;
+  vrEndingGazeTimer=setInterval(()=>{
+    gazeTime+=0.2;
+    if(gazeTime>=3){ clearInterval(vrEndingGazeTimer); restartGameVR(); }
+  },200);
+}
+
+let vrEndingGazeTimer=null;
+function restartGameVR(){
+  if(vrEndingMesh){
+    scene.remove(vrEndingMesh.plane);
+    scene.remove(vrEndingMesh.hint);
+    vrEndingMesh=null;
+  }
+  if(vrEndingGazeTimer){ clearInterval(vrEndingGazeTimer); vrEndingGazeTimer=null; }
+  totalItemsFound=0; usedItemIdxs=[];
+  spawnSwitch();
 }
 
 function restartGame(){
   document.getElementById('ending-screen').style.display='none';
+  if(vrEndingMesh){scene.remove(vrEndingMesh.plane);scene.remove(vrEndingMesh.hint);vrEndingMesh=null;}
+  if(vrEndingGazeTimer){clearInterval(vrEndingGazeTimer);vrEndingGazeTimer=null;}
   totalItemsFound=0; usedItemIdxs=[];
-  // 重回開始畫面
   document.getElementById('start-screen').style.display='flex';
   gameActive=false;
   if(isLocked) document.exitPointerLock();
